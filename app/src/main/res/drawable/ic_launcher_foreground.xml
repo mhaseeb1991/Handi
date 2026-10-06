@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- pot body -->
+    <path
+        android:fillColor="#FFF5EFE4"
+        android:pathData="M34,52 L74,52 C80,56 82,62 80,68 C77,77 67,80 54,80 C41,80 31,77 28,68 C26,62 28,56 34,52 Z" />
+    <!-- rim -->
+    <path
+        android:fillColor="#FFF5EFE4"
+        android:pathData="M30,46 L78,46 C80,46 81,47 81,49 C81,51 80,52 78,52 L30,52 C28,52 27,51 27,49 C27,47 28,46 30,46 Z" />
+    <!-- band -->
+    <path
+        android:fillColor="#FFB5412A"
+        android:pathData="M30,60 L78,60 L78,63 L30,63 Z" />
+    <!-- steam -->
+    <path
+        android:strokeColor="#FFF5EFE4"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M46,40 C43,36 49,33 46,28 M54,40 C51,35 57,32 54,26 M62,40 C59,36 65,33 62,28" />
+</vector>
