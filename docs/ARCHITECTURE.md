@@ -6,24 +6,24 @@ feature modules. It follows a conventional three-layer split —
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ ui/                                                              │
-│   Screens (@Composable) ── collect StateFlow ──> @HiltViewModel  │
-│   Navigation Compose routes glue the three screens together      │
-└───────────────────────────────┬───────────────────────────────────┘
+│ ui/                                                             │
+│   Screens (@Composable) ── collect StateFlow ──> @HiltViewModel │
+│   Navigation Compose routes glue the three screens together     │
+└────────────────────────────────┬────────────────────────────────┘
                                  │ calls repository functions
-┌───────────────────────────────▼───────────────────────────────────┐
+┌────────────────────────────────▼─────────────────────────────────┐
 │ data/repository/                                                 │
 │   RecipeRepository, CatalogRepository                            │
 │   — expose domain models (data/model/) as Flow / suspend fun     │
 │   — convert to/from Room entities via Mappers.kt                 │
-└───────────────┬───────────────────────────────┬──────────────────┘
-                │                                │
-┌───────────────▼─────────────┐   ┌──────────────▼─────────────────┐
-│ data/local/ (Room)          │   │ data/image/ (ImageStorage)     │
-│ HandiDatabase, DAOs, entities│   │ copies photos into private     │
-│ seeded on first create       │   │ app storage, cleans up on      │
+└───────────────┬──────────────────────────────────┬───────────────┘
+                │                                  │
+┌───────────────▼───────────────┐   ┌──────────────▼─────────────────┐
+│ data/local/ (Room )           │   │ data/image/ (ImageStorage)     │
+│ HandiDatabase, DAOs, entities │   │ copies photos into private     │
+│ seeded on first create        │   │ app storage, cleans up on      │
 │                               │   │ replace/delete                 │
-└───────────────────────────────┘   └─────────────────────────────────┘
+└───────────────────────────────┘   └────────────────────────────────┘
 ```
 
 ## Request / response flow, end to end
