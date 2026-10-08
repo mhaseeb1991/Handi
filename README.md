@@ -30,3 +30,7 @@ Stack: Kotlin 2.1, Compose BOM 2024.12, Material 3, Hilt 2.54 (KSP), Room 2.6, N
 ## Run
 Open the folder in Android Studio (Ladybug or newer), let Gradle sync, run the `app` configuration.
 `./gradlew testDebugUnitTest` runs the formatter unit tests.
+
+## Documentation
+For an onboarding-level walkthrough of the codebase — layers, data flow,
+every screen and ViewModel, the design system — see **[docs/](docs/README.md)**.
