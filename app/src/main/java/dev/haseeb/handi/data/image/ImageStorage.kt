@@ -39,6 +39,17 @@ class ImageStorage @Inject constructor(
         }.getOrNull().also { clearCameraCache() }
     }
 
+    /**
+     * Writes raw [bytes] (e.g. read from a backup archive entry) into private storage and
+     * returns the absolute path of the copy. Used by backup restore, which has already
+     * extracted the photo from the archive rather than holding a content [Uri] for it.
+     */
+    suspend fun importBytes(bytes: ByteArray): String = withContext(Dispatchers.IO) {
+        val target = File(imagesDir, "${UUID.randomUUID()}.jpg")
+        target.writeBytes(bytes)
+        target.absolutePath
+    }
+
     suspend fun delete(path: String?) {
         if (path == null) return
         withContext(Dispatchers.IO) {
