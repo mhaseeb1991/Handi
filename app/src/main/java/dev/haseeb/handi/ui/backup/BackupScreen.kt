@@ -2,18 +2,20 @@ package dev.haseeb.handi.ui.backup
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -23,8 +25,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -42,7 +42,6 @@ import java.util.Locale
 
 private const val MIME_ZIP = "application/zip"
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BackupScreen(
     onBack: () -> Unit,
@@ -68,19 +67,7 @@ fun BackupScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbar) },
-        topBar = {
-            TopAppBar(
-                title = { Text("Backup & restore") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-            )
-        },
+        topBar = { BackupTopBar(onBack = onBack) },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -100,7 +87,7 @@ fun BackupScreen(
                 onClick = { exportLauncher.launch(defaultBackupFileName()) },
                 enabled = !state.busy,
                 shape = MaterialTheme.shapes.medium,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
             ) {
                 BackupButtonContent(icon = Icons.Rounded.CloudUpload, label = "Export backup", busy = state.busy)
             }
@@ -121,7 +108,7 @@ fun BackupScreen(
                 onClick = { importLauncher.launch(arrayOf(MIME_ZIP, "application/octet-stream")) },
                 enabled = !state.busy,
                 shape = MaterialTheme.shapes.medium,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
             ) {
                 BackupButtonContent(icon = Icons.Rounded.CloudDownload, label = "Restore from backup", busy = state.busy)
             }
@@ -143,6 +130,31 @@ fun BackupScreen(
     }
 }
 
+/**
+ * Matches `EditorTopBar`'s shape (back/close icon + small [Kicker] + headline), rather than a
+ * generic Material [androidx.compose.material3.TopAppBar] — kept consistent with every other
+ * screen in the app, none of which use the stock app bar.
+ */
+@Composable
+private fun BackupTopBar(onBack: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
+            .padding(start = 8.dp, end = 20.dp, top = 4.dp, bottom = 12.dp),
+    ) {
+        IconButton(onClick = onBack) {
+            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+        }
+        Column(Modifier.padding(start = 4.dp)) {
+            Kicker("Your handi")
+            Text("Backup & restore", style = MaterialTheme.typography.headlineSmall)
+        }
+    }
+}
+
 @Composable
 private fun BackupButtonContent(icon: ImageVector, label: String, busy: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -151,7 +163,7 @@ private fun BackupButtonContent(icon: ImageVector, label: String, busy: Boolean)
         } else {
             Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
         }
-        Text(label, modifier = Modifier.padding(start = 10.dp))
+        Text(label, modifier = Modifier.padding(start = 8.dp))
     }
 }
 
