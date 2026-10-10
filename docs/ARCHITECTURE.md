@@ -90,9 +90,10 @@ re-emits automatically — nobody has to manually refresh the Home screen.
 | `data.model` | Plain domain models + `Measure` + `QuantityFormatter` | — |
 | `data.repository` | `RecipeRepository`, `CatalogRepository`, entity↔model `Mappers.kt` | `data.local`, `data.model`, `data.image` |
 | `data.image` | `ImageStorage` (private-storage photo copy/cleanup) | Android `Context` only |
+| `data.backup` | Export/import to a `.zip` backup archive | `data.repository`, `data.image`, `data.model` |
 | `di` | Hilt `@Module`s | `data.local` |
-| `ui.home` / `ui.detail` / `ui.editor` | Screens + ViewModels | `data.repository`, `data.model`, `ui.navigation`, `core.designsystem` |
-| `ui.navigation` | Route definitions + `NavHost` | `ui.home`, `ui.detail`, `ui.editor` |
+| `ui.home` / `ui.detail` / `ui.editor` / `ui.backup` | Screens + ViewModels | `data.repository`, `data.model`, (`ui.backup` also: `data.backup`), `ui.navigation`, `core.designsystem` |
+| `ui.navigation` | Route definitions + `NavHost` | `ui.home`, `ui.detail`, `ui.editor`, `ui.backup` |
 | `core.designsystem` | Theme + shared Compose components | nothing app-specific |
 
 Further reading: [Data layer](DATA_LAYER.md) · [UI layer](UI_LAYER.md) ·

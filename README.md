@@ -11,6 +11,7 @@ Native Android app (Kotlin, Jetpack Compose, Material 3) for writing down, brows
   3. **Method** — numbered steps, reorder up/down, delete
   4. **Photo** — gallery (Android Photo Picker) or camera, then save
 - **Custom light & dark theme** — paper/ink + paprika/herb/saffron palette, serif headlines. Dynamic colour is deliberately off.
+- **Backup & restore** — export every recipe, photo and custom ingredient to a single `.zip` you pick a location for (local storage, USB, a cloud-synced folder), and restore it later on this device or a new one. Fully offline. Reachable from the Home screen's toolbar icon.
 
 ## Architecture
 ```
@@ -19,9 +20,10 @@ data/
   model/        Domain models, Measure units, QuantityFormatter (fractions, scaling, parsing)
   repository/   RecipeRepository, CatalogRepository
   image/        ImageStorage — copies photos into app-private storage, camera FileProvider
+  backup/       Export/import to a .zip backup archive
 di/             Hilt modules
 ui/
-  home/ detail/ editor/   Screen + @HiltViewModel (unidirectional StateFlow)
+  home/ detail/ editor/ backup/   Screen + @HiltViewModel (unidirectional StateFlow)
   navigation/   Type-safe Navigation Compose routes
 core/designsystem/        Theme (colour, type, shape) + shared components
 ```

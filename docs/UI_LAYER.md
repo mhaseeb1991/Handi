@@ -214,6 +214,30 @@ first step — prompts to discard if the form `isDirty`.
   `EditorViewModel.newCameraUri()` → `ImageStorage.newCameraUri()`), a
   "Remove photo" button, and a read-only "Ready to save" summary card.
 
+## Backup & restore screen — `ui/backup/BackupScreen.kt` + `BackupViewModel.kt`
+
+Reached from an icon in the Home screen's header (`Icons.Rounded.SettingsBackupRestore`,
+wired through `HomeScreen`'s `onBackup` param → `BackupRoute` in
+`HandiNavHost.kt`). Same ViewModel pattern as every other screen, but the
+"state" is just `BackupUiState(busy, message)` — there's no long-lived data
+to observe, only an in-flight export/import and a one-shot result message.
+
+- **Export** button launches `ActivityResultContracts.CreateDocument("application/zip")`
+  (the system "save as" picker; no storage permission needed) with a
+  suggested `handi-backup-<date>.zip` name, then calls
+  `BackupViewModel.export(uri)`.
+- **Restore** button launches `ActivityResultContracts.OpenDocument()` (the
+  system "open" picker) filtered to zip/octet-stream, then calls
+  `BackupViewModel.import(uri)`.
+- Both ViewModel functions guard against double-taps with `state.busy`,
+  run the corresponding `BackupRepository` call in `viewModelScope`, and
+  turn the result (or any thrown exception's message) into a one-line
+  `message` shown as a snackbar — mirroring how `PhotoStep`'s `onError`
+  surfaces camera failures.
+
+See [Data layer](DATA_LAYER.md#5-backup--restore--databackup) for the
+export/import format and the "insert as new, don't dedupe" import strategy.
+
 ## Adding a new screen — checklist
 
 1. Add a `@Serializable` route to `HandiNavHost.kt`.
