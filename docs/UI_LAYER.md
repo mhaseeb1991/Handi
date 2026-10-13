@@ -236,7 +236,7 @@ to observe, only an in-flight export/import and a one-shot result message.
   surfaces camera failures.
 
 See [Data layer](DATA_LAYER.md#5-backup--restore--databackup) for the
-export/import format and the "insert as new, don't dedupe" import strategy.
+export/import format and the title-based dedupe import strategy.
 
 ## Adding a new screen — checklist
 

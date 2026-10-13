@@ -14,19 +14,24 @@ import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Number of recipes / custom ingredients written to or read from a backup archive. */
-data class BackupSummary(val recipes: Int, val customIngredients: Int)
+/**
+ * Number of recipes / custom ingredients written to or read from a backup archive.
+ * [skippedRecipes] (import only) counts recipes whose title already matched one on the
+ * device and were therefore left alone rather than duplicated — see
+ * [excludingTitlesAlreadyIn].
+ */
+data class BackupSummary(val recipes: Int, val customIngredients: Int, val skippedRecipes: Int = 0)
 
 /**
  * Exports every recipe (and its photo) plus custom catalogue ingredients to a single `.zip`
  * the user picks a destination for, and restores from one.
  *
  * Import strategy (deliberate, see `docs/DATA_LAYER.md`): there is no stable id shared
- * between devices/installs, so every imported recipe is inserted as a **new** row rather
- * than attempting to match/overwrite an existing one. Re-importing the same archive twice
- * will therefore create duplicate recipes — this is a known v1 limitation, not a bug.
- * Custom ingredients are deduplicated by Room's existing unique `(categoryId, name)` index,
- * so re-importing those is safe.
+ * between devices/installs, so recipes are matched by title instead (trimmed,
+ * case-insensitive — see [excludingTitlesAlreadyIn]). A recipe whose title already exists on
+ * the device is **skipped**, not duplicated and not overwritten; only recipes with a genuinely
+ * new title are inserted. Custom ingredients are deduplicated by Room's existing unique
+ * `(categoryId, name)` index, so re-importing those is safe regardless.
  */
 @Singleton
 class BackupRepository @Inject constructor(
@@ -83,13 +88,20 @@ class BackupRepository @Inject constructor(
             )
         }
 
-        manifest.recipes.forEach { backupRecipe ->
+        val existingTitles = recipes.recipes.first().map { it.title }
+        val toImport = manifest.recipes.excludingTitlesAlreadyIn(existingTitles)
+
+        toImport.forEach { backupRecipe ->
             val imagePath = backupRecipe.imageFile
                 ?.let { name -> archive.images[name] }
                 ?.let { bytes -> images.importBytes(bytes) }
             recipes.save(backupRecipe.toRecipe(imagePath))
         }
 
-        BackupSummary(recipes = manifest.recipes.size, customIngredients = manifest.customIngredients.size)
+        BackupSummary(
+            recipes = toImport.size,
+            customIngredients = manifest.customIngredients.size,
+            skippedRecipes = manifest.recipes.size - toImport.size,
+        )
     }
 }

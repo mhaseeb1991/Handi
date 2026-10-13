@@ -62,7 +62,12 @@ class BackupViewModel @Inject constructor(
 
     private fun BackupSummary.describeImport(): String {
         val recipePart = if (recipes == 1) "1 recipe" else "$recipes recipes"
-        return "Restored $recipePart" + customIngredientsSuffix()
+        val skippedPart = when (skippedRecipes) {
+            0 -> ""
+            1 -> " (1 already on this device, skipped)"
+            else -> " ($skippedRecipes already on this device, skipped)"
+        }
+        return "Restored $recipePart" + customIngredientsSuffix() + skippedPart
     }
 
     private fun BackupSummary.customIngredientsSuffix(): String = when (customIngredients) {
