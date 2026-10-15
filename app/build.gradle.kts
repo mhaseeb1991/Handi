@@ -17,6 +17,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -38,6 +39,14 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+
+    sourceSets {
+        // Exposes the exported Room schemas (app/schemas/) to MigrationTestHelper as
+        // androidTest assets, keyed the same way room.schemaLocation writes them.
+        getByName("androidTest") {
+            assets.srcDirs(files("$projectDir/schemas"))
+        }
     }
 }
 
@@ -73,4 +82,11 @@ dependencies {
     implementation(libs.coil.compose)
 
     testImplementation(libs.junit)
+
+    // Room migration test harness (androidTest: needs a device/emulator to actually run,
+    // same limitation already noted in docs/README.md's "known gaps").
+    androidTestImplementation(libs.room.testing)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
 }

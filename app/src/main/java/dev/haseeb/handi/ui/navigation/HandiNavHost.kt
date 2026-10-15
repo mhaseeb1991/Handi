@@ -11,6 +11,7 @@ import androidx.navigation.compose.rememberNavController
 import dev.haseeb.handi.ui.detail.DetailScreen
 import dev.haseeb.handi.ui.editor.EditorScreen
 import dev.haseeb.handi.ui.home.HomeScreen
+import dev.haseeb.handi.ui.settings.SettingsScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -22,6 +23,9 @@ data class DetailRoute(val id: Long)
 /** id == 0 means "create a new recipe". */
 @Serializable
 data class EditorRoute(val id: Long = 0L)
+
+@Serializable
+data object SettingsRoute
 
 @Composable
 fun HandiNavHost() {
@@ -38,6 +42,7 @@ fun HandiNavHost() {
             HomeScreen(
                 onRecipeClick = { id -> nav.navigate(DetailRoute(id)) },
                 onAddRecipe = { nav.navigate(EditorRoute()) },
+                onSettings = { nav.navigate(SettingsRoute) },
             )
         }
         composable<DetailRoute> {
@@ -59,6 +64,9 @@ fun HandiNavHost() {
                     }
                 },
             )
+        }
+        composable<SettingsRoute> {
+            SettingsScreen(onBack = { nav.popBackStack() })
         }
     }
 }
