@@ -67,4 +67,9 @@ app/src/test/java/…   Unit tests (currently: QuantityFormatterTest)
   ViewModels have none.
 - Room has no migrations yet (`version = 1`) — any schema change needs a
   `Migration` before bumping the version, or existing installs will crash on
-  upgrade (Room is not configured with `fallbackToDestructiveMigration`).
+  upgrade (Room is not configured with `fallbackToDestructiveMigration`). A
+  `MigrationTestHelper`-based test harness exists for when that day comes
+  (see [DATA_LAYER.md](DATA_LAYER.md#2-room-persistence--datalocal)), but it's
+  an `androidTest` and needs a device/emulator to run — CI
+  (`.github/workflows/android-ci.yml`) only runs unit tests + assemble, not
+  `connectedAndroidTest`.
