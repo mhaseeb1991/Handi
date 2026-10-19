@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.SettingsBackupRestore
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,6 +49,7 @@ import dev.haseeb.handi.data.model.Recipe
 fun HomeScreen(
     onRecipeClick: (Long) -> Unit,
     onAddRecipe: () -> Unit,
+    onBackup: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -78,7 +81,12 @@ fun HomeScreen(
             verticalItemSpacing = 22.dp,
         ) {
             item(span = StaggeredGridItemSpan.FullLine) {
-                Header(total = state.total, query = state.query, onQueryChange = viewModel::onQueryChange)
+                Header(
+                    total = state.total,
+                    query = state.query,
+                    onQueryChange = viewModel::onQueryChange,
+                    onBackup = onBackup,
+                )
             }
             when {
                 state.loading -> Unit
@@ -100,15 +108,22 @@ fun HomeScreen(
 }
 
 @Composable
-private fun Header(total: Int, query: String, onQueryChange: (String) -> Unit) {
+private fun Header(total: Int, query: String, onQueryChange: (String) -> Unit, onBackup: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
-        Kicker(if (total == 1) "1 recipe in your handi" else "$total recipes in your handi")
-        Text(
-            text = "What’s cooking\ntoday?",
-            style = MaterialTheme.typography.displaySmall,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(top = 6.dp, bottom = 18.dp),
-        )
+        Row(verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f)) {
+                Kicker(if (total == 1) "1 recipe in your handi" else "$total recipes in your handi")
+                Text(
+                    text = "What’s cooking\ntoday?",
+                    style = MaterialTheme.typography.displaySmall,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(top = 6.dp, bottom = 18.dp),
+                )
+            }
+            IconButton(onClick = onBackup) {
+                Icon(Icons.Rounded.SettingsBackupRestore, contentDescription = "Backup & restore")
+            }
+        }
         if (total > 0) {
             OutlinedTextField(
                 value = query,
