@@ -2,6 +2,7 @@ package dev.haseeb.handi.ui.detail
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -33,7 +34,9 @@ import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -74,8 +77,24 @@ fun DetailScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) { viewModel.deleted.collect { onBack() } }
+    LaunchedEffect(Unit) {
+        viewModel.shareUri.collect { uri ->
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = "application/pdf"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(send, "Share recipe"))
+        }
+    }
+    LaunchedEffect(Unit) {
+        viewModel.shareError.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     val recipe = state.recipe
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -111,10 +130,17 @@ fun DetailScreen(
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
-            RoundAction(Icons.AutoMirrored.Rounded.ArrowBack, "Back", onBack)
+            RoundAction(Icons.AutoMirrored.Rounded.ArrowBack, "Back", onClick = onBack)
             Spacer(Modifier.weight(1f))
             if (recipe != null) {
-                RoundAction(Icons.Rounded.DeleteOutline, "Delete recipe") { confirmDelete = true }
+                RoundAction(
+                    icon = Icons.Rounded.Share,
+                    label = "Share as PDF",
+                    busy = state.exportingPdf,
+                    onClick = viewModel::sharePdf,
+                )
+                Spacer(Modifier.width(8.dp))
+                RoundAction(Icons.Rounded.DeleteOutline, "Delete recipe", onClick = { confirmDelete = true })
             }
         }
     }
@@ -135,14 +161,20 @@ fun DetailScreen(
 }
 
 @Composable
-private fun RoundAction(icon: ImageVector, label: String, onClick: () -> Unit) {
+private fun RoundAction(icon: ImageVector, label: String, busy: Boolean = false, onClick: () -> Unit) {
     Surface(
         shape = CircleShape,
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f),
         contentColor = MaterialTheme.colorScheme.onSurface,
         shadowElevation = 2.dp,
     ) {
-        IconButton(onClick = onClick) { Icon(icon, contentDescription = label) }
+        IconButton(onClick = onClick, enabled = !busy) {
+            if (busy) {
+                CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+            } else {
+                Icon(icon, contentDescription = label)
+            }
+        }
     }
 }
 

@@ -231,7 +231,31 @@ merge strategy (e.g. a stable export-time id) is future work.
 **Entry point**: `ui/backup/BackupScreen.kt` + `BackupViewModel.kt` (see
 [UI layer](UI_LAYER.md)), reached from a toolbar icon on the Home screen.
 
-## 6. Dependency injection — `di/DatabaseModule.kt`
+## 6. Sharing a recipe as PDF — `data/pdf/`
+
+Renders one recipe to a PDF and hands it to the system share sheet (GitHub
+issue [#5](https://github.com/mhaseeb1991/Handi/issues/5)). Split the same
+way `data/backup/` is, so the part that decides *what* goes on the page is
+plain Kotlin and unit-tested, and only the part that actually draws it
+touches `android.graphics`:
+
+| File | Role | Android-dependent? |
+|---|---|---|
+| `RecipePdfContent.kt` | `Recipe.toPdfContent(servings, categoryNames)` — builds a flat, print-ready model: title, meta line, ingredients grouped and formatted via `QuantityFormatter` (scaled to whatever servings the user had the detail screen set to), method steps | No |
+| `RecipePdfRenderer.kt` | paginated `Canvas`/`PdfDocument` drawing of a `RecipePdfContent` — word-wraps text and starts a new page when a page fills up | Yes (`android.graphics`) |
+| `RecipePdfExporter.kt` | the orchestrator: reads `CatalogRepository` for category display names, calls the two pieces above, writes the PDF to `cacheDir/pdf_exports/` (previous exports are deleted first — these are scratch files, not something kept around), and returns a `FileProvider` `content://` `Uri` | Yes (`@ApplicationContext Context`) |
+
+No new Gradle dependency — PDF generation uses the Android framework's own
+`android.graphics.pdf.PdfDocument`, the same way `ImageStorage` uses
+`FileProvider` for camera photos rather than a third-party library.
+
+**Entry point**: a "Share as PDF" button on `DetailScreen` (see
+[UI layer](UI_LAYER.md)); `DetailViewModel.sharePdf()` calls the exporter
+on a background dispatcher and sends the resulting `Uri` on a one-shot
+channel for the screen to launch `Intent.ACTION_SEND` with, mirroring how
+`deleted` already signals a one-time navigation event.
+
+## 7. Dependency injection — `di/DatabaseModule.kt`
 
 The only Hilt module in the app today. `@InstallIn(SingletonComponent::class)`,
 provides:
