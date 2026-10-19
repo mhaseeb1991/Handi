@@ -19,7 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.SettingsBackupRestore
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,7 +49,7 @@ import dev.haseeb.handi.data.model.Recipe
 fun HomeScreen(
     onRecipeClick: (Long) -> Unit,
     onAddRecipe: () -> Unit,
-    onBackup: () -> Unit,
+    onSettings: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -85,7 +85,7 @@ fun HomeScreen(
                     total = state.total,
                     query = state.query,
                     onQueryChange = viewModel::onQueryChange,
-                    onBackup = onBackup,
+                    onSettings = onSettings,
                 )
             }
             when {
@@ -108,7 +108,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun Header(total: Int, query: String, onQueryChange: (String) -> Unit, onBackup: () -> Unit) {
+private fun Header(total: Int, query: String, onQueryChange: (String) -> Unit, onSettings: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
         Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
@@ -120,8 +120,8 @@ private fun Header(total: Int, query: String, onQueryChange: (String) -> Unit, o
                     modifier = Modifier.padding(top = 6.dp, bottom = 18.dp),
                 )
             }
-            IconButton(onClick = onBackup) {
-                Icon(Icons.Rounded.SettingsBackupRestore, contentDescription = "Backup & restore")
+            IconButton(onClick = onSettings) {
+                Icon(Icons.Rounded.Settings, contentDescription = "Settings")
             }
         }
         if (total > 0) {

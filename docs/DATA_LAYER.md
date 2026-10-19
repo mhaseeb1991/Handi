@@ -98,6 +98,24 @@ raw `ContentValues` inserts inside one transaction, wired up in
 > `fallbackToDestructiveMigration()` — otherwise existing installs crash on
 > the schema mismatch.
 
+**How to add a migration safely.** A regression test harness already exists
+for this: `app/src/androidTest/java/.../HandiDatabaseMigrationTest.kt`, using
+Room's `MigrationTestHelper` against the exported schema JSON in
+`app/schemas/` (wired into the test APK as assets via the `androidTest`
+`sourceSets` block in `app/build.gradle.kts`). When you change an `@Entity`:
+
+1. Bump `HandiDatabase.version` and let `ksp` export the new schema JSON.
+2. Write the `Migration(oldVersion, newVersion) { ... }` and add it to
+   `Room.databaseBuilder(...).addMigrations(...)` in `di/DatabaseModule.kt`.
+3. Add a test to `HandiDatabaseMigrationTest` that calls
+   `helper.createDatabase(TEST_DB, oldVersion)` (inserting a row or two to
+   carry across), then `helper.runMigrationsAndValidate(TEST_DB, newVersion, true, YourMigration)`,
+   and asserts the data survived.
+4. Run it with `./gradlew connectedAndroidTest` against a real device or
+   emulator — this repo has no CI emulator wired up (see the "known gaps"
+   below), so this currently has to be run locally, not just trusted from a
+   green CI run.
+
 **`IngredientCatalog.kt`** — the static seed data: 15 `SeedCategory` entries
 (Vegetables, Fruits, Pulses & Lentils, Meat & Poultry, Seafood, Masala &
 Spices, Fresh Herbs, Dairy & Eggs, Grains & Flour, Oils & Fats, Sauces &

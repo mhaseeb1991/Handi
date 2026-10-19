@@ -12,6 +12,7 @@ import dev.haseeb.handi.ui.backup.BackupScreen
 import dev.haseeb.handi.ui.detail.DetailScreen
 import dev.haseeb.handi.ui.editor.EditorScreen
 import dev.haseeb.handi.ui.home.HomeScreen
+import dev.haseeb.handi.ui.settings.SettingsScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -23,6 +24,9 @@ data class DetailRoute(val id: Long)
 /** id == 0 means "create a new recipe". */
 @Serializable
 data class EditorRoute(val id: Long = 0L)
+
+@Serializable
+data object SettingsRoute
 
 @Serializable
 data object BackupRoute
@@ -42,7 +46,7 @@ fun HandiNavHost() {
             HomeScreen(
                 onRecipeClick = { id -> nav.navigate(DetailRoute(id)) },
                 onAddRecipe = { nav.navigate(EditorRoute()) },
-                onBackup = { nav.navigate(BackupRoute) },
+                onSettings = { nav.navigate(SettingsRoute) },
             )
         }
         composable<DetailRoute> {
@@ -64,6 +68,9 @@ fun HandiNavHost() {
                     }
                 },
             )
+        }
+        composable<SettingsRoute> {
+            SettingsScreen(onBackup = { nav.navigate(BackupRoute) }, onBack = { nav.popBackStack() })
         }
         composable<BackupRoute> {
             BackupScreen(onBack = { nav.popBackStack() })
