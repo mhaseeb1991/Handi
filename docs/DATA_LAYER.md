@@ -177,7 +177,54 @@ Recipe photos are **copied into app-private storage**
 See `app/src/main/AndroidManifest.xml` / `app/src/main/res/xml/file_paths.xml`
 for the matching `FileProvider` declaration.
 
-## 5. Dependency injection — `di/DatabaseModule.kt`
+## 5. Backup & restore — `data/backup/`
+
+Lets a user export every recipe (and its photo) plus custom catalogue
+ingredients to a single `.zip` they pick a location for (GitHub issue
+[#2](https://github.com/mhaseeb1991/Handi/issues/2)), and restore from one
+— fully offline, no account or server involved. Split into layers so the
+portable pieces are plain-JVM and unit-testable (`app/src/test/.../data/backup/`),
+the same way `QuantityFormatter` is:
+
+| File | Role | Android-dependent? |
+|---|---|---|
+| `BackupModels.kt` | `@Serializable` DTOs for the JSON payload: `BackupFile`, `BackupRecipe`, `BackupIngredientLine`, `BackupIngredient` | No |
+| `BackupMapper.kt` | pure `Recipe.toBackup()` / `BackupRecipe.toRecipe()` / `Ingredient.toBackupCustom()` conversions | No |
+| `BackupSerializer.kt` | JSON encode/decode via `kotlinx.serialization`; wraps failures in `BackupFormatException` | No |
+| `BackupArchive.kt` | packs/unpacks the `.zip` (`backup.json` + `images/*`) using `java.util.zip` only | No |
+| `BackupRepository.kt` | the orchestrator: reads `RecipeRepository`/`CatalogRepository`, writes/reads via `ContentResolver` + the four pieces above | Yes (`@ApplicationContext Context`) |
+
+**Archive shape**: a zip with one `backup.json` (a `BackupFile`) and zero or
+more `images/<name>.jpg` entries, one per recipe photo. `BackupRecipe.imageFile`
+holds the matching entry name instead of embedding image bytes in the JSON.
+
+**Import strategy — read this before changing it.** There's no id shared
+between devices/installs, so recipes can't be matched by id. Instead,
+`BackupRepository.import()` matches by **title** — trimmed and
+case-insensitive, via `List<BackupRecipe>.excludingTitlesAlreadyIn()` in
+`BackupDedupe.kt` (a plain, unit-tested function, see
+`BackupDedupeTest.kt`). A recipe whose title already exists on the device
+is **skipped entirely** — not duplicated, and not used to update/overwrite
+the existing one; only recipes with a genuinely new title are inserted
+(`BackupRecipe.toRecipe()` always produces `id = 0`, i.e. a fresh row).
+Two repeats of the same title *within one backup* are also collapsed to
+the first. `BackupSummary.skippedRecipes` reports how many were skipped,
+and `BackupViewModel` surfaces it in the restore snackbar. Custom
+ingredients don't need this: they go through
+`CatalogRepository.addCustomIngredient`, which is already safe to repeat
+thanks to Room's unique `(categoryId, name)` index on `ingredients`
+(`OnConflictStrategy.IGNORE`).
+
+This is intentionally a simple identity rule, not a full merge — renaming
+a recipe before re-exporting will import it as a new copy rather than
+updating the original, and two unrelated recipes that happen to share a
+title will be treated as "the same" and the second skipped. A sturdier
+merge strategy (e.g. a stable export-time id) is future work.
+
+**Entry point**: `ui/backup/BackupScreen.kt` + `BackupViewModel.kt` (see
+[UI layer](UI_LAYER.md)), reached from a toolbar icon on the Home screen.
+
+## 6. Dependency injection — `di/DatabaseModule.kt`
 
 The only Hilt module in the app today. `@InstallIn(SingletonComponent::class)`,
 provides:
