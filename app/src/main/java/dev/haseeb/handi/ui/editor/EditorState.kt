@@ -48,6 +48,8 @@ data class EditorUiState(
     val step: EditorStep = EditorStep.BASICS,
     val title: String = "",
     val description: String = "",
+    /** Optional link to where this recipe came from — a chef's blog, a video, a cookbook page. */
+    val sourceUrl: String = "",
     val servings: Int = 2,
     val cookMinutes: Int = 30,
     val categories: List<Category> = emptyList(),

@@ -23,6 +23,7 @@ class BackupMapperTest {
         ),
         steps = listOf("Soak chickpeas.", "Cook with spices."),
         updatedAt = 1_234_567L,
+        sourceUrl = "https://example.com/chana-masala",
     )
 
     @Test fun `toBackup carries every field except id and the raw image path`() {
@@ -35,6 +36,7 @@ class BackupMapperTest {
         assertEquals(recipe.cookMinutes, backup.cookMinutes)
         assertEquals(recipe.steps, backup.steps)
         assertEquals(recipe.updatedAt, backup.updatedAt)
+        assertEquals(recipe.sourceUrl, backup.sourceUrl)
         assertEquals(2, backup.ingredients.size)
         assertEquals("Chickpeas", backup.ingredients[0].name)
         assertEquals("CUP", backup.ingredients[0].measure)
@@ -61,11 +63,19 @@ class BackupMapperTest {
         assertEquals(recipe.steps, restored.steps)
         assertEquals(recipe.updatedAt, restored.updatedAt)
         assertEquals(recipe.ingredients, restored.ingredients)
+        assertEquals(recipe.sourceUrl, restored.sourceUrl)
     }
 
     @Test fun `toRecipe with no backed-up photo leaves imagePath null`() {
         val backup = recipe.toBackup(imageFile = null)
         assertNull(backup.toRecipe(imagePath = null).imagePath)
+    }
+
+    @Test fun `a recipe with no reference link round-trips sourceUrl as null`() {
+        val noLink = recipe.copy(sourceUrl = null)
+        val backup = noLink.toBackup(imageFile = null)
+        assertNull(backup.sourceUrl)
+        assertNull(backup.toRecipe(imagePath = null).sourceUrl)
     }
 
     @Test fun `toBackupCustom carries the ingredient's category, name and default measure`() {

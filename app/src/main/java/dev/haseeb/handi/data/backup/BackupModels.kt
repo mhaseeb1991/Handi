@@ -39,6 +39,8 @@ data class BackupRecipe(
     val ingredients: List<BackupIngredientLine> = emptyList(),
     val steps: List<String> = emptyList(),
     val updatedAt: Long = 0,
+    /** Optional link to where this recipe came from (see [dev.haseeb.handi.data.model.Recipe.sourceUrl]). */
+    val sourceUrl: String? = null,
 )
 
 @Serializable

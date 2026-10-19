@@ -21,6 +21,7 @@ object DatabaseModule {
     fun provideDatabase(@ApplicationContext context: Context): HandiDatabase =
         Room.databaseBuilder(context, HandiDatabase::class.java, HandiDatabase.NAME)
             .addCallback(HandiDatabase.SeedCallback)
+            .addMigrations(HandiDatabase.MIGRATION_1_2)
             .build()
 
     @Provides

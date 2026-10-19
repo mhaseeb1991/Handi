@@ -127,6 +127,7 @@ fun EditorScreen(
                             state = state,
                             onTitle = viewModel::setTitle,
                             onDescription = viewModel::setDescription,
+                            onSourceUrl = viewModel::setSourceUrl,
                             onServings = viewModel::changeServings,
                             onMinutes = viewModel::changeMinutes,
                         )

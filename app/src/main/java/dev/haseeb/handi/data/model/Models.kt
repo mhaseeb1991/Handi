@@ -33,4 +33,6 @@ data class Recipe(
     val ingredients: List<RecipeIngredient>,
     val steps: List<String>,
     val updatedAt: Long = 0,
+    /** Optional link to where this recipe came from (a chef's blog, a video, a cookbook page). */
+    val sourceUrl: String? = null,
 )

@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -30,6 +31,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import dev.haseeb.handi.core.designsystem.components.Hairline
 import dev.haseeb.handi.core.designsystem.components.Kicker
@@ -39,6 +41,7 @@ fun BasicsStep(
     state: EditorUiState,
     onTitle: (String) -> Unit,
     onDescription: (String) -> Unit,
+    onSourceUrl: (String) -> Unit,
     onServings: (Int) -> Unit,
     onMinutes: (Int) -> Unit,
 ) {
@@ -86,6 +89,18 @@ fun BasicsStep(
             shape = MaterialTheme.shapes.medium,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+        )
+
+        OutlinedTextField(
+            value = state.sourceUrl,
+            onValueChange = onSourceUrl,
+            singleLine = true,
+            label = { Text("Reference link (optional)") },
+            placeholder = { Text("A chef's blog, a video, a cookbook page…") },
+            leadingIcon = { Icon(Icons.Rounded.Link, contentDescription = null) },
+            shape = MaterialTheme.shapes.medium,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
         )
 
         Row(

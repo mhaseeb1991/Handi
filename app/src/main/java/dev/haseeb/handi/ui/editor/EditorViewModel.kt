@@ -66,6 +66,7 @@ class EditorViewModel @Inject constructor(
                         loading = false,
                         title = existing.title,
                         description = existing.description,
+                        sourceUrl = existing.sourceUrl ?: "",
                         servings = existing.servings,
                         cookMinutes = existing.cookMinutes,
                         imagePath = existing.imagePath,
@@ -83,6 +84,7 @@ class EditorViewModel @Inject constructor(
 
     fun setTitle(value: String) = _state.update { it.copy(title = value.take(80)) }
     fun setDescription(value: String) = _state.update { it.copy(description = value.take(240)) }
+    fun setSourceUrl(value: String) = _state.update { it.copy(sourceUrl = value.take(500)) }
     fun changeServings(delta: Int) = _state.update { it.copy(servings = (it.servings + delta).coerceIn(1, 50)) }
     fun changeMinutes(delta: Int) = _state.update { it.copy(cookMinutes = (it.cookMinutes + delta).coerceIn(0, 24 * 60)) }
 
@@ -239,6 +241,7 @@ class EditorViewModel @Inject constructor(
                         RecipeIngredient(it.name, it.categoryId, it.amount, it.measure, it.note)
                     },
                     steps = s.steps.map { it.text },
+                    sourceUrl = normalizedSourceUrl(s.sourceUrl),
                 ),
             )
             saved = true
@@ -299,6 +302,17 @@ class EditorViewModel @Inject constructor(
             Measure.GRAM, Measure.MILLILITRE -> listOf("50", "100", "250", "500")
             Measure.TO_TASTE -> emptyList()
             else -> listOf("¼", "½", "1", "2", "3")
+        }
+
+        /**
+         * `""`/blank -> `null` (the field is optional); otherwise trims and, if the user typed
+         * a bare domain like `www.example.com/recipe` with no scheme, prefixes `https://` so
+         * the link is always directly openable later (see `DetailScreen`'s "View original").
+         */
+        fun normalizedSourceUrl(raw: String): String? {
+            val trimmed = raw.trim()
+            if (trimmed.isEmpty()) return null
+            return if (trimmed.contains("://")) trimmed else "https://$trimmed"
         }
     }
 }

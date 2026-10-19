@@ -18,8 +18,11 @@ vocabulary the UI layer speaks.
   *as used inside one recipe* (a snapshot — not a foreign key to
   `Ingredient`, so renaming a catalogue ingredient later never changes past
   recipes).
-- `Recipe(id, title, description, imagePath, servings, cookMinutes, ingredients, steps, updatedAt)`
-  — the aggregate root. `id = 0` means "not saved yet".
+- `Recipe(id, title, description, imagePath, servings, cookMinutes, ingredients, steps, updatedAt, sourceUrl)`
+  — the aggregate root. `id = 0` means "not saved yet". `sourceUrl` is an
+  optional link to where the recipe came from (a chef's blog, a video, a
+  cookbook page) — see [UI layer](UI_LAYER.md#the-four-step-composables)
+  for how it's entered, and the detail screen section for how it's shown.
 
 **`Measure.kt`** — the enum of units: `GRAM`, `KILOGRAM`, `MILLILITRE`,
 `LITRE`, `CUP`, `TABLESPOON`, `TEASPOON`, `PIECE`, `CLOVE`, `BUNCH`,
@@ -93,16 +96,20 @@ it bulk-inserts every category and ingredient from `IngredientCatalog` using
 raw `ContentValues` inserts inside one transaction, wired up in
 `di/DatabaseModule.kt`.
 
-> **No migrations exist yet.** If you change any `@Entity`, you must bump
-> `version` and add a `Migration`, or add
+> **`HandiDatabase` is at `version = 2`.** If you change any `@Entity`, you
+> must bump `version` and add a `Migration`, or add
 > `fallbackToDestructiveMigration()` — otherwise existing installs crash on
-> the schema mismatch.
+> the schema mismatch. `MIGRATION_1_2` (adding `recipes.sourceUrl`, issue
+> #10) is the one migration that exists so far — follow its shape for the
+> next one.
 
 **How to add a migration safely.** A regression test harness already exists
-for this: `app/src/androidTest/java/.../HandiDatabaseMigrationTest.kt`, using
-Room's `MigrationTestHelper` against the exported schema JSON in
-`app/schemas/` (wired into the test APK as assets via the `androidTest`
-`sourceSets` block in `app/build.gradle.kts`). When you change an `@Entity`:
+for this: `app/src/androidTest/java/.../HandiDatabaseMigrationTest.kt`'s
+`migrate1To2_addsSourceUrlColumn_keepingExistingRows` is a live, passing
+example — using Room's `MigrationTestHelper` against the exported schema
+JSON in `app/schemas/` (wired into the test APK as assets via the
+`androidTest` `sourceSets` block in `app/build.gradle.kts`). When you
+change an `@Entity`:
 
 1. Bump `HandiDatabase.version` and let `ksp` export the new schema JSON.
 2. Write the `Migration(oldVersion, newVersion) { ... }` and add it to
