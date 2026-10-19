@@ -29,8 +29,8 @@ class RecipePdfExporter @Inject constructor(
 
     /** [servings] is whatever the user currently has the detail screen scaled to. */
     suspend fun export(recipe: Recipe, servings: Int): Uri = withContext(Dispatchers.IO) {
-        val categoryNames = catalog.categories.first().associate { it.id to it.name }
-        val content = recipe.toPdfContent(servings, categoryNames)
+        val categories = catalog.categories.first().associateBy { it.id }
+        val content = recipe.toPdfContent(servings, categories)
 
         // Previous exports are disposable scratch files, not something we keep around.
         exportDir.listFiles()?.forEach { it.delete() }

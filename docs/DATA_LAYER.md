@@ -241,13 +241,24 @@ touches `android.graphics`:
 
 | File | Role | Android-dependent? |
 |---|---|---|
-| `RecipePdfContent.kt` | `Recipe.toPdfContent(servings, categoryNames)` — builds a flat, print-ready model: title, meta line, ingredients grouped and formatted via `QuantityFormatter` (scaled to whatever servings the user had the detail screen set to), method steps | No |
-| `RecipePdfRenderer.kt` | paginated `Canvas`/`PdfDocument` drawing of a `RecipePdfContent` — word-wraps text and starts a new page when a page fills up | Yes (`android.graphics`) |
-| `RecipePdfExporter.kt` | the orchestrator: reads `CatalogRepository` for category display names, calls the two pieces above, writes the PDF to `cacheDir/pdf_exports/` (previous exports are deleted first — these are scratch files, not something kept around), and returns a `FileProvider` `content://` `Uri` | Yes (`@ApplicationContext Context`) |
+| `RecipePdfContent.kt` | `Recipe.toPdfContent(servings, categories)` — builds a flat, print-ready model: title, separate servings/time labels, ingredients grouped by category (name **and** tint, for the renderer's colour dot) and formatted via `QuantityFormatter` (scaled to whatever servings the user had the detail screen set to), method steps, photo path | No |
+| `RecipePdfRenderer.kt` | paginated `Canvas`/`PdfDocument` drawing of a `RecipePdfContent`, styled with Handi's own paper/ink/paprika palette — word-wraps text and starts a new page when one fills up | Yes (`android.graphics`) |
+| `RecipePdfExporter.kt` | the orchestrator: reads `CatalogRepository` for the category map (name + tint), calls the two pieces above, writes the PDF to `cacheDir/pdf_exports/` (previous exports are deleted first — these are scratch files, not something kept around), and returns a `FileProvider` `content://` `Uri` | Yes (`@ApplicationContext Context`) |
 
 No new Gradle dependency — PDF generation uses the Android framework's own
 `android.graphics.pdf.PdfDocument`, the same way `ImageStorage` uses
 `FileProvider` for camera photos rather than a third-party library.
+
+**Visual design, not just a text dump.** `RecipePdfRenderer` hand-copies
+the light-scheme hex values from `core/designsystem/theme/Color.kt`
+(Paper background, Ink/InkSoft text, Paprika accent) rather than drawing
+default black-on-white — a thin paprika bar across the top of every page,
+a serif title, a "SERVES / COOK TIME" stat card (mirrors `StatsStrip`), the
+recipe's own photo (centre-cropped into a rounded rect, same crop math as
+`ContentScale.Crop`), a coloured dot per ingredient category (the same
+`tint` `TintDot` uses on screen), the amount right-aligned in paprika next
+to each ingredient, and a numbered serif accent for each method step. A
+hairline + page number footer repeats on every page.
 
 **Entry point**: a "Share as PDF" button on `DetailScreen` (see
 [UI layer](UI_LAYER.md)); `DetailViewModel.sharePdf()` calls the exporter

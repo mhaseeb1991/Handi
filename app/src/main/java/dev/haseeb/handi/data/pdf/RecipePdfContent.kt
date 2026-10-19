@@ -1,5 +1,6 @@
 package dev.haseeb.handi.data.pdf
 
+import dev.haseeb.handi.data.model.Category
 import dev.haseeb.handi.data.model.QuantityFormatter
 import dev.haseeb.handi.data.model.Recipe
 
@@ -11,13 +12,19 @@ import dev.haseeb.handi.data.model.Recipe
 data class RecipePdfContent(
     val title: String,
     val description: String,
-    /** e.g. "Serves 4 · 35 min". */
-    val metaLine: String,
+    val servingsLabel: String,
+    /** Empty when the recipe has no cook time set — the renderer then shows one stat, not two. */
+    val timeLabel: String,
     val sourceUrl: String?,
+    val imagePath: String?,
     val ingredientGroups: List<IngredientGroup>,
     val steps: List<String>,
 ) {
-    data class IngredientGroup(val categoryName: String, val lines: List<String>)
+    data class IngredientGroup(val categoryName: String, val categoryTint: Long, val lines: List<IngredientLine>)
+
+    /** [label] is the ingredient name (+ note); [amount] is formatted separately so the
+     * renderer can right-align it in its own column, matching the detail screen's layout. */
+    data class IngredientLine(val label: String, val amount: String)
 }
 
 /**
@@ -25,17 +32,21 @@ data class RecipePdfContent(
  * scaling [dev.haseeb.handi.ui.detail.DetailScreen] does live on screen, so the PDF matches
  * whatever the user was looking at when they chose to share it.
  */
-internal fun Recipe.toPdfContent(servings: Int, categoryNames: Map<String, String>): RecipePdfContent {
+internal fun Recipe.toPdfContent(servings: Int, categories: Map<String, Category>): RecipePdfContent {
     val scale = this.servings.takeIf { it > 0 && servings > 0 }?.let { servings.toDouble() / it } ?: 1.0
 
     val groups = ingredients
         .groupBy { it.categoryId }
         .map { (categoryId, items) ->
+            val category = categories[categoryId]
             RecipePdfContent.IngredientGroup(
-                categoryName = categoryNames[categoryId] ?: "Other",
+                categoryName = category?.name ?: "Other",
+                categoryTint = category?.tint ?: 0xFF8C8074,
                 lines = items.map { item ->
-                    val amount = QuantityFormatter.format(item.amount, item.measure, scale)
-                    if (item.note.isNotBlank()) "${item.name} — $amount (${item.note})" else "${item.name} — $amount"
+                    RecipePdfContent.IngredientLine(
+                        label = if (item.note.isNotBlank()) "${item.name} (${item.note})" else item.name,
+                        amount = QuantityFormatter.format(item.amount, item.measure, scale),
+                    )
                 },
             )
         }
@@ -43,12 +54,15 @@ internal fun Recipe.toPdfContent(servings: Int, categoryNames: Map<String, Strin
     return RecipePdfContent(
         title = title.ifBlank { "Untitled recipe" },
         description = description.trim(),
-        metaLine = buildString {
-            append(if (servings == 1) "Serves 1" else "Serves $servings")
-            if (cookMinutes > 0) append(" · $cookMinutes min")
-        },
+        servingsLabel = if (servings == 1) "1" else "$servings",
+        timeLabel = if (cookMinutes > 0) formatMinutes(cookMinutes) else "",
         sourceUrl = sourceUrl,
+        imagePath = imagePath,
         ingredientGroups = groups,
         steps = steps.map { it.trim() }.filter { it.isNotEmpty() },
     )
 }
+
+/** "35 min" under an hour, "1h 5m" at or above — matches `DetailScreen`'s `StatsStrip`. */
+internal fun formatMinutes(minutes: Int): String =
+    if (minutes >= 60) "${minutes / 60}h ${minutes % 60}m" else "$minutes min"

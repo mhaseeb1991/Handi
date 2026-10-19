@@ -1,11 +1,15 @@
 package dev.haseeb.handi.data.pdf
 
+import android.graphics.Bitmap
+import android.graphics.Color
 import android.graphics.pdf.PdfDocument
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
+import java.io.File
 
 /**
  * [RecipePdfRenderer] is the one piece of the PDF feature that genuinely needs a device —
@@ -28,19 +32,31 @@ class RecipePdfRendererTest {
         }
     }
 
-    @Test fun rendersAShortRecipeToOnePdfPage() {
-        val content = RecipePdfContent(
-            title = "Aloo Gobi",
-            description = "A dry potato & cauliflower curry.",
-            metaLine = "Serves 4 · 35 min",
-            sourceUrl = "https://example.com/aloo-gobi",
-            ingredientGroups = listOf(
-                RecipePdfContent.IngredientGroup("Vegetables", listOf("Potato — 2 pcs", "Cauliflower — 1 pc")),
+    private fun sample(
+        steps: List<String> = listOf("Chop everything.", "Cook until tender."),
+        imagePath: String? = null,
+    ) = RecipePdfContent(
+        title = "Aloo Gobi",
+        description = "A dry potato & cauliflower curry.",
+        servingsLabel = "4",
+        timeLabel = "35 min",
+        sourceUrl = "https://example.com/aloo-gobi",
+        imagePath = imagePath,
+        ingredientGroups = listOf(
+            RecipePdfContent.IngredientGroup(
+                "Vegetables",
+                0xFF5B8A3C,
+                listOf(
+                    RecipePdfContent.IngredientLine("Potato", "2 pcs"),
+                    RecipePdfContent.IngredientLine("Cauliflower (cut into florets)", "1 pc"),
+                ),
             ),
-            steps = listOf("Chop everything.", "Cook until tender."),
-        )
+        ),
+        steps = steps,
+    )
 
-        val bytes = render(content)
+    @Test fun rendersAShortRecipeToOnePdfPage() {
+        val bytes = render(sample())
 
         assertTrue("expected non-trivial PDF output", bytes.size > 100)
         assertTrue("expected a %PDF header", String(bytes, 0, 5, Charsets.ISO_8859_1) == "%PDF-")
@@ -48,18 +64,9 @@ class RecipePdfRendererTest {
 
     @Test fun paginatesALongMethodAcrossMultiplePages() {
         val longSteps = (1..120).map { "Step $it: do something reasonably descriptive while cooking this dish." }
-        val content = RecipePdfContent(
-            title = "A Very Long Recipe",
-            description = "",
-            metaLine = "Serves 4",
-            sourceUrl = null,
-            ingredientGroups = emptyList(),
-            steps = longSteps,
-        )
-
         val document = PdfDocument()
         try {
-            RecipePdfRenderer(content).renderAllPages(document)
+            RecipePdfRenderer(sample(steps = longSteps)).renderAllPages(document)
             assertTrue("a 120-step method should overflow one page", document.pages.size > 1)
         } finally {
             document.close()
@@ -67,15 +74,37 @@ class RecipePdfRendererTest {
     }
 
     @Test fun handlesNoIngredientsAndNoStepsWithoutCrashing() {
-        val content = RecipePdfContent(
+        val empty = RecipePdfContent(
             title = "Empty Draft",
             description = "",
-            metaLine = "Serves 1",
+            servingsLabel = "1",
+            timeLabel = "",
             sourceUrl = null,
+            imagePath = null,
             ingredientGroups = emptyList(),
             steps = emptyList(),
         )
-        val bytes = render(content)
+        val bytes = render(empty)
+        assertTrue(bytes.isNotEmpty())
+    }
+
+    @Test fun rendersThePhotoWithoutCrashingWhenOneIsPresent() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val file = File(context.cacheDir, "pdf_renderer_test.jpg")
+        Bitmap.createBitmap(40, 30, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.RED)
+            file.outputStream().use { compress(Bitmap.CompressFormat.JPEG, 90, it) }
+            recycle()
+        }
+
+        val bytes = render(sample(imagePath = file.absolutePath))
+
+        assertTrue("expected a %PDF header even with a photo embedded", String(bytes, 0, 5, Charsets.ISO_8859_1) == "%PDF-")
+        file.delete()
+    }
+
+    @Test fun missingPhotoFileIsSkippedRatherThanCrashing() {
+        val bytes = render(sample(imagePath = "/no/such/file.jpg"))
         assertTrue(bytes.isNotEmpty())
     }
 }
