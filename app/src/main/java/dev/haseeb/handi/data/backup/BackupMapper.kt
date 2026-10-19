@@ -16,6 +16,7 @@ internal fun Recipe.toBackup(imageFile: String?): BackupRecipe = BackupRecipe(
     ingredients = ingredients.map { it.toBackup() },
     steps = steps,
     updatedAt = updatedAt,
+    sourceUrl = sourceUrl,
 )
 
 private fun RecipeIngredient.toBackup() = BackupIngredientLine(
@@ -36,6 +37,7 @@ internal fun BackupRecipe.toRecipe(imagePath: String?): Recipe = Recipe(
     ingredients = ingredients.map { it.toDomain() },
     steps = steps,
     updatedAt = updatedAt,
+    sourceUrl = sourceUrl,
 )
 
 private fun BackupIngredientLine.toDomain() = RecipeIngredient(

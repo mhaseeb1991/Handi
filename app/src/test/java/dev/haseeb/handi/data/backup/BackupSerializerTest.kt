@@ -22,6 +22,7 @@ class BackupSerializerTest {
                 ),
                 steps = listOf("Chop everything.", "Cook until tender."),
                 updatedAt = 1_700_000_001_000L,
+                sourceUrl = "https://example.com/aloo-gobi",
             ),
             BackupRecipe(
                 title = "No-photo recipe",
