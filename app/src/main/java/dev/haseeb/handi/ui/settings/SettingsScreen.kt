@@ -1,14 +1,18 @@
 package dev.haseeb.handi.ui.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.SettingsBackupRestore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -24,12 +28,12 @@ import dev.haseeb.handi.core.designsystem.components.Kicker
 
 /**
  * Entry point for app-level settings — reached from the icon on [dev.haseeb.handi.ui.home.HomeScreen]'s
- * header. Deliberately thin for now (just "About"): this screen exists so Backup & Restore,
- * account/sign-in and sync status (see the project roadmap) have a home to grow into, rather
- * than each bolting its own icon onto Home the way Backup & Restore's did at first.
+ * header. Hosts Backup & Restore (its own screen, see [onBackup]) and a thin "About" section —
+ * this is the home future entries (account/sign-in, sync status — see the project roadmap)
+ * grow into, rather than each bolting its own icon onto Home.
  */
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen(onBackup: () -> Unit, onBack: () -> Unit) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = { SettingsTopBar(onBack = onBack) },
@@ -40,7 +44,35 @@ fun SettingsScreen(onBack: () -> Unit) {
                 .padding(padding)
                 .padding(horizontal = 24.dp, vertical = 8.dp),
         ) {
-            Kicker("About", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Kicker("Your data", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Surface(
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp).clickable(onClick = onBackup),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(16.dp),
+                ) {
+                    Icon(Icons.Rounded.SettingsBackupRestore, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text("Backup & restore", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Export your recipes to a file, or restore from one",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Icon(
+                        Icons.Rounded.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+
+            Kicker("About", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 32.dp))
             Surface(
                 shape = MaterialTheme.shapes.large,
                 color = MaterialTheme.colorScheme.surfaceContainerLow,

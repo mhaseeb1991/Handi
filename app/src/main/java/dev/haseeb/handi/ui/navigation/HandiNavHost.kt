@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import dev.haseeb.handi.ui.backup.BackupScreen
 import dev.haseeb.handi.ui.detail.DetailScreen
 import dev.haseeb.handi.ui.editor.EditorScreen
 import dev.haseeb.handi.ui.home.HomeScreen
@@ -26,6 +27,9 @@ data class EditorRoute(val id: Long = 0L)
 
 @Serializable
 data object SettingsRoute
+
+@Serializable
+data object BackupRoute
 
 @Composable
 fun HandiNavHost() {
@@ -66,7 +70,10 @@ fun HandiNavHost() {
             )
         }
         composable<SettingsRoute> {
-            SettingsScreen(onBack = { nav.popBackStack() })
+            SettingsScreen(onBackup = { nav.navigate(BackupRoute) }, onBack = { nav.popBackStack() })
+        }
+        composable<BackupRoute> {
+            BackupScreen(onBack = { nav.popBackStack() })
         }
     }
 }
