@@ -1,6 +1,9 @@
 package dev.haseeb.handi.ui.detail
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +31,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -49,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -191,6 +196,9 @@ private fun RecipeContent(
                         modifier = Modifier.padding(top = 10.dp),
                     )
                 }
+                if (recipe.sourceUrl != null) {
+                    ReferenceLinkRow(url = recipe.sourceUrl, modifier = Modifier.padding(top = 12.dp))
+                }
                 StatsStrip(
                     servings = state.servings,
                     minutes = recipe.cookMinutes,
@@ -265,6 +273,31 @@ private fun RecipeContent(
                 }
             }
         }
+    }
+}
+
+/** Opens [url] in the browser when tapped. Shown only when a recipe has a reference link. */
+@Composable
+private fun ReferenceLinkRow(url: String, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier.clickable {
+            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+        },
+    ) {
+        Icon(
+            Icons.Rounded.Link,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(16.dp),
+        )
+        Text(
+            "View original recipe",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 6.dp),
+        )
     }
 }
 

@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
@@ -14,7 +15,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RecipeIngredientEntity::class,
         RecipeStepEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class HandiDatabase : RoomDatabase() {
@@ -59,5 +60,12 @@ abstract class HandiDatabase : RoomDatabase() {
 
     companion object {
         const val NAME = "handi.db"
+
+        /** Adds `recipes.sourceUrl` (nullable) — see issue #10, "reference link on a recipe". */
+        val MIGRATION_1_2: Migration = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE recipes ADD COLUMN sourceUrl TEXT")
+            }
+        }
     }
 }

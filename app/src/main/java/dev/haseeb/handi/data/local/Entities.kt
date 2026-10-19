@@ -45,6 +45,8 @@ data class RecipeEntity(
     val cookMinutes: Int,
     val createdAt: Long,
     val updatedAt: Long,
+    /** Optional link to where this recipe came from (a chef's blog, a video, a cookbook page). */
+    val sourceUrl: String? = null,
 )
 
 @Entity(

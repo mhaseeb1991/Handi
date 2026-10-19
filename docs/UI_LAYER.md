@@ -114,10 +114,14 @@ val state: StateFlow<DetailUiState> =
   that should survive recomposition/replay.)
 
 UI: full-bleed hero photo with a gradient fade into the background, then
-title/description, a `StatsStrip` (servings stepper + cook time), ingredients
-grouped by category with a coloured `TintDot`, numbered method steps. Two
-floating round buttons (back, delete) over the hero, an `AlertDialog` to
-confirm deletion, an `ExtendedFloatingActionButton` ("Edit recipe").
+title/description, a `ReferenceLinkRow` (only rendered when
+`recipe.sourceUrl != null` — taps it open the link via an
+`Intent.ACTION_VIEW`, wrapped in `runCatching` so a malformed/unopenable
+URL doesn't crash the screen), a `StatsStrip` (servings stepper + cook
+time), ingredients grouped by category with a coloured `TintDot`, numbered
+method steps. Two floating round buttons (back, delete) over the hero, an
+`AlertDialog` to confirm deletion, an `ExtendedFloatingActionButton` ("Edit
+recipe").
 
 ### Editor screen — `ui/editor/EditorScreen.kt` + `EditorViewModel.kt`
 
@@ -188,7 +192,11 @@ first step — prompts to discard if the form `isDirty`.
 #### The four step composables
 
 - **`BasicsStep.kt`** — title (`BasicTextField`, auto-focused on first open
-  if empty), optional description, and two `StepperCard`s (servings, cook
+  if empty), optional description, an optional **reference link** (a plain
+  URL field; see [Data layer](DATA_LAYER.md#1-domain-models--datamodel)'s
+  `Recipe.sourceUrl` — `EditorViewModel.normalizedSourceUrl()` trims it,
+  treats blank as "no link", and prefixes `https://` onto a bare domain so
+  it's always directly openable), and two `StepperCard`s (servings, cook
   time) with `±` buttons.
 - **`IngredientsStep.kt`** — a horizontal row of category chips (`CategoryChip`,
   tinted, with a picked-count badge), then a search field + wrapping
