@@ -119,9 +119,22 @@ title/description, a `ReferenceLinkRow` (only rendered when
 `Intent.ACTION_VIEW`, wrapped in `runCatching` so a malformed/unopenable
 URL doesn't crash the screen), a `StatsStrip` (servings stepper + cook
 time), ingredients grouped by category with a coloured `TintDot`, numbered
-method steps. Two floating round buttons (back, delete) over the hero, an
-`AlertDialog` to confirm deletion, an `ExtendedFloatingActionButton` ("Edit
-recipe").
+method steps. Three floating round buttons over the hero (back, share as
+PDF, delete), an `AlertDialog` to confirm deletion, an
+`ExtendedFloatingActionButton` ("Edit recipe").
+
+**Share as PDF**: `DetailViewModel.sharePdf()` (see
+[Data layer](DATA_LAYER.md#6-sharing-a-recipe-as-pdf--datapdf)) runs the
+export on a background dispatcher, tracked by `DetailUiState.exportingPdf`
+— the share `RoundAction` swaps its icon for a small
+`CircularProgressIndicator` and disables itself while `true`, the same
+busy-state pattern `BackupScreen`'s buttons use. On success the resulting
+`Uri` comes back on a one-shot `shareUri` channel (mirroring how `deleted`
+signals "navigate back now"); the screen collects it in a
+`LaunchedEffect` and launches `Intent.ACTION_SEND` with
+`FLAG_GRANT_READ_URI_PERMISSION`. On failure, a `shareError` channel
+carries a message shown as a `Toast` (the screen has no `Scaffold`/
+`SnackbarHost` of its own, unlike `BackupScreen`).
 
 ### Editor screen — `ui/editor/EditorScreen.kt` + `EditorViewModel.kt`
 

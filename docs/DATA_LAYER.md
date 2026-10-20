@@ -231,7 +231,42 @@ merge strategy (e.g. a stable export-time id) is future work.
 **Entry point**: `ui/backup/BackupScreen.kt` + `BackupViewModel.kt` (see
 [UI layer](UI_LAYER.md)), reached from a toolbar icon on the Home screen.
 
-## 6. Dependency injection — `di/DatabaseModule.kt`
+## 6. Sharing a recipe as PDF — `data/pdf/`
+
+Renders one recipe to a PDF and hands it to the system share sheet (GitHub
+issue [#5](https://github.com/mhaseeb1991/Handi/issues/5)). Split the same
+way `data/backup/` is, so the part that decides *what* goes on the page is
+plain Kotlin and unit-tested, and only the part that actually draws it
+touches `android.graphics`:
+
+| File | Role | Android-dependent? |
+|---|---|---|
+| `RecipePdfContent.kt` | `Recipe.toPdfContent(servings, categories)` — builds a flat, print-ready model: title, separate servings/time labels, ingredients grouped by category (name **and** tint, for the renderer's colour dot) and formatted via `QuantityFormatter` (scaled to whatever servings the user had the detail screen set to), method steps, photo path | No |
+| `RecipePdfRenderer.kt` | paginated `Canvas`/`PdfDocument` drawing of a `RecipePdfContent`, styled with Handi's own paper/ink/paprika palette — word-wraps text and starts a new page when one fills up | Yes (`android.graphics`) |
+| `RecipePdfExporter.kt` | the orchestrator: reads `CatalogRepository` for the category map (name + tint), calls the two pieces above, writes the PDF to `cacheDir/pdf_exports/` (previous exports are deleted first — these are scratch files, not something kept around), and returns a `FileProvider` `content://` `Uri` | Yes (`@ApplicationContext Context`) |
+
+No new Gradle dependency — PDF generation uses the Android framework's own
+`android.graphics.pdf.PdfDocument`, the same way `ImageStorage` uses
+`FileProvider` for camera photos rather than a third-party library.
+
+**Visual design, not just a text dump.** `RecipePdfRenderer` hand-copies
+the light-scheme hex values from `core/designsystem/theme/Color.kt`
+(Paper background, Ink/InkSoft text, Paprika accent) rather than drawing
+default black-on-white — a thin paprika bar across the top of every page,
+a serif title, a "SERVES / COOK TIME" stat card (mirrors `StatsStrip`), the
+recipe's own photo (centre-cropped into a rounded rect, same crop math as
+`ContentScale.Crop`), a coloured dot per ingredient category (the same
+`tint` `TintDot` uses on screen), the amount right-aligned in paprika next
+to each ingredient, and a numbered serif accent for each method step. A
+hairline + page number footer repeats on every page.
+
+**Entry point**: a "Share as PDF" button on `DetailScreen` (see
+[UI layer](UI_LAYER.md)); `DetailViewModel.sharePdf()` calls the exporter
+on a background dispatcher and sends the resulting `Uri` on a one-shot
+channel for the screen to launch `Intent.ACTION_SEND` with, mirroring how
+`deleted` already signals a one-time navigation event.
+
+## 7. Dependency injection — `di/DatabaseModule.kt`
 
 The only Hilt module in the app today. `@InstallIn(SingletonComponent::class)`,
 provides:
