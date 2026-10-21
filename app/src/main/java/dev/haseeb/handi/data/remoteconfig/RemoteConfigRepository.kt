@@ -1,11 +1,13 @@
 package dev.haseeb.handi.data.remoteconfig
 
 import android.content.Context
+import android.util.Log
 import com.google.android.gms.tasks.Task
 import com.google.firebase.FirebaseApp
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.haseeb.handi.BuildConfig
 import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -35,7 +37,10 @@ class RemoteConfigRepository @Inject constructor(
         FirebaseRemoteConfig.getInstance().apply {
             setConfigSettingsAsync(
                 FirebaseRemoteConfigSettings.Builder()
-                    .setMinimumFetchIntervalInSeconds(DEFAULT_FETCH_INTERVAL_SECONDS)
+                    // Debug builds fetch every time (no client-side caching to fight while
+                    // testing a flag change); release keeps a real interval so we don't hammer
+                    // Firebase's servers on every cold start.
+                    .setMinimumFetchIntervalInSeconds(if (BuildConfig.DEBUG) 0L else RELEASE_FETCH_INTERVAL_SECONDS)
                     .build(),
             )
             setDefaultsAsync(FeatureFlag.defaults())
@@ -43,14 +48,15 @@ class RemoteConfigRepository @Inject constructor(
     }.getOrNull()
 
     /**
-     * Fetches and activates the latest values. Safe to call from app start — swallows any
-     * failure (no network, Firebase not configured, throttled by [DEFAULT_FETCH_INTERVAL_SECONDS])
-     * and just keeps whatever values were already active. This is a best-effort refresh; callers
-     * never need to handle failure, only the eventual (possibly unchanged) flag values.
+     * Fetches and activates the latest values. Safe to call from app start — never throws. Logs
+     * (doesn't swallow silently) on failure, since "flag didn't update" is otherwise impossible
+     * to diagnose from outside the app; callers still don't need to handle failure themselves,
+     * only the eventual (possibly unchanged) flag values.
      */
     suspend fun refresh() {
         val config = remoteConfig ?: return
         runCatching { config.fetchAndActivate().await() }
+            .onFailure { Log.w(TAG, "fetchAndActivate() failed; keeping previously active values", it) }
     }
 
     fun isEnabled(flag: FeatureFlag): Boolean {
@@ -63,11 +69,13 @@ class RemoteConfigRepository @Inject constructor(
             // that async call right after construction, or no Remote Config parameter created
             // yet) — in that case trust our compiled default, not the SDK's bare "false".
             if (value.source == FirebaseRemoteConfig.VALUE_SOURCE_STATIC) flag.defaultValue else value.asBoolean()
-        }.getOrDefault(flag.defaultValue)
+        }.onFailure { Log.w(TAG, "isEnabled(${flag.key}) failed; using the compiled default", it) }
+            .getOrDefault(flag.defaultValue)
     }
 
     private companion object {
-        const val DEFAULT_FETCH_INTERVAL_SECONDS = 3600L
+        const val TAG = "RemoteConfigRepository"
+        const val RELEASE_FETCH_INTERVAL_SECONDS = 3600L
     }
 }
 
