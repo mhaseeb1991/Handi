@@ -54,6 +54,15 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
+// The Google Services plugin hard-fails the build if google-services.json is missing, so it's
+// only applied when a real Firebase project's config file is actually present. Without it, the
+// app still builds and runs fine — RemoteConfigRepository (data/remoteconfig/) falls back to
+// its in-app default flag values, by design, whenever Firebase hasn't been configured.
+// See docs/DATA_LAYER.md for how to add your own google-services.json.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
@@ -80,6 +89,9 @@ dependencies {
     ksp(libs.room.compiler)
 
     implementation(libs.coil.compose)
+
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.config)
 
     testImplementation(libs.junit)
 

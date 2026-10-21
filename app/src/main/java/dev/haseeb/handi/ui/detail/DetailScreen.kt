@@ -133,13 +133,15 @@ fun DetailScreen(
             RoundAction(Icons.AutoMirrored.Rounded.ArrowBack, "Back", onClick = onBack)
             Spacer(Modifier.weight(1f))
             if (recipe != null) {
-                RoundAction(
-                    icon = Icons.Rounded.Share,
-                    label = "Share as PDF",
-                    busy = state.exportingPdf,
-                    onClick = viewModel::sharePdf,
-                )
-                Spacer(Modifier.width(8.dp))
+                if (state.pdfExportEnabled) {
+                    RoundAction(
+                        icon = Icons.Rounded.Share,
+                        label = "Share as PDF",
+                        busy = state.exportingPdf,
+                        onClick = viewModel::sharePdf,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
                 RoundAction(Icons.Rounded.DeleteOutline, "Delete recipe", onClick = { confirmDelete = true })
             }
         }
