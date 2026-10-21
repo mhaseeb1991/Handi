@@ -18,11 +18,13 @@ import kotlin.coroutines.resumeWithException
  * Remote Config overrides it with after a successful fetch. Never throws, never blocks app
  * startup on a network call.
  *
- * Deliberately **not** backed by a Firebase project in this repo yet — see
- * `app/build.gradle.kts`'s conditional plugin application and `docs/DATA_LAYER.md` for how to
- * add your own `google-services.json`. Until one exists, [remoteConfig] stays `null` and every
- * flag just reads its compiled-in default, by design (this is the fallback path every flag read
- * takes anyway on a brand-new install, before the first fetch ever completes).
+ * Works with **or** without a Firebase project configured — see `app/build.gradle.kts`'s
+ * conditional plugin application and `docs/DATA_LAYER.md` for how to add your own
+ * `google-services.json`. Without one, [remoteConfig] stays `null` and every flag reads its
+ * compiled-in default directly. **With** one but before the first successful fetch (or before a
+ * given key has ever been created as a Remote Config parameter), [isEnabled] still returns the
+ * compiled-in default — see the `VALUE_SOURCE_STATIC` check there, and
+ * `RemoteConfigRepositoryTest` for the regression test.
  */
 @Singleton
 class RemoteConfigRepository @Inject constructor(
@@ -53,7 +55,15 @@ class RemoteConfigRepository @Inject constructor(
 
     fun isEnabled(flag: FeatureFlag): Boolean {
         val config = remoteConfig ?: return flag.defaultValue
-        return runCatching { config.getBoolean(flag.key) }.getOrDefault(flag.defaultValue)
+        return runCatching {
+            val value = config.getValue(flag.key)
+            // getBoolean()/getValue() never throw for a missing key — they silently return the
+            // SDK's own built-in static fallback (false) instead. STATIC means neither our
+            // setDefaultsAsync() value nor a fetched one has taken effect yet (e.g. a race with
+            // that async call right after construction, or no Remote Config parameter created
+            // yet) — in that case trust our compiled default, not the SDK's bare "false".
+            if (value.source == FirebaseRemoteConfig.VALUE_SOURCE_STATIC) flag.defaultValue else value.asBoolean()
+        }.getOrDefault(flag.defaultValue)
     }
 
     private companion object {
