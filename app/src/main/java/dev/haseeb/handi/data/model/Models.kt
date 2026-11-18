@@ -35,4 +35,11 @@ data class Recipe(
     val updatedAt: Long = 0,
     /** Optional link to where this recipe came from (a chef's blog, a video, a cookbook page). */
     val sourceUrl: String? = null,
+    /**
+     * Stable cross-device identity for sync (issue #7) — a UUID assigned the first time this
+     * recipe is pushed to Firestore, used as its document id there instead of [id]. [id] is a
+     * local, per-device Room autoincrement value, so two devices can (and will) hand out the
+     * same [id] to two different recipes; only [remoteId] is safe to use as a shared key.
+     */
+    val remoteId: String? = null,
 )

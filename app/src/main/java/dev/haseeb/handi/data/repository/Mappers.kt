@@ -41,6 +41,7 @@ internal fun RecipeWithDetails.toModel() = Recipe(
     steps = steps.sortedBy { it.position }.map { it.text },
     updatedAt = recipe.updatedAt,
     sourceUrl = recipe.sourceUrl,
+    remoteId = recipe.remoteId,
 )
 
 internal fun Recipe.toEntity(createdAt: Long, now: Long) = RecipeEntity(
@@ -53,6 +54,7 @@ internal fun Recipe.toEntity(createdAt: Long, now: Long) = RecipeEntity(
     createdAt = createdAt,
     updatedAt = now,
     sourceUrl = sourceUrl,
+    remoteId = remoteId,
 )
 
 internal fun Recipe.ingredientEntities() = ingredients.mapIndexed { index, item ->

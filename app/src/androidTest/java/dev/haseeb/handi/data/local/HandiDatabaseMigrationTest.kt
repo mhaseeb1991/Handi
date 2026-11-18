@@ -56,6 +56,25 @@ class HandiDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migrate2To3_addsRemoteIdColumn_keepingExistingRows() {
+        helper.createDatabase(TEST_DB, 2).apply {
+            execSQL(
+                "INSERT INTO recipes (id, title, description, imagePath, servings, cookMinutes, createdAt, updatedAt, sourceUrl) " +
+                    "VALUES (1, 'Aloo Gobi', 'A dry curry.', NULL, 4, 35, 1000, 1000, NULL)",
+            )
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(TEST_DB, 3, true, HandiDatabase.MIGRATION_2_3)
+
+        migrated.query("SELECT title, remoteId FROM recipes WHERE id = 1").use { cursor ->
+            assertTrue("expected the pre-migration row to still be there", cursor.moveToFirst())
+            assertEquals("Aloo Gobi", cursor.getString(cursor.getColumnIndexOrThrow("title")))
+            assertTrue("remoteId should be NULL for a row that predates the column", cursor.isNull(cursor.getColumnIndexOrThrow("remoteId")))
+        }
+    }
+
     private companion object {
         const val TEST_DB = "handi-migration-test.db"
     }

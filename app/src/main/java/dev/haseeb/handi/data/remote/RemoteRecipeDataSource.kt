@@ -8,36 +8,32 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Firestore-backed storage for one signed-in user's recipes, under `users/{uid}/recipes/{id}`.
+ * Firestore-backed storage for one signed-in user's recipes, under
+ * `users/{uid}/recipes/{remoteId}` — `remoteId` is a UUID (see
+ * [dev.haseeb.handi.data.model.Recipe.remoteId]), not a local Room id, since two devices
+ * independently hand out the same Room ids and would otherwise overwrite each other's recipes.
  *
- * This is the "remote data source that sits **alongside** `RecipeRepository`'s Room-backed one"
- * issue #6 asks for — **deliberately not called from anywhere yet**. Room stays the single
- * source of truth for the whole app today; nothing here runs unless/until Phase 3 (issue #7)
- * wires it into an actual two-way sync flow. It exists now so that wiring is additive later,
- * not a redesign of this class.
- *
- * Unlike [dev.haseeb.handi.data.auth.AuthRepository] / [dev.haseeb.handi.data.remoteconfig.RemoteConfigRepository],
- * this doesn't defensively check whether Firebase is configured — because nothing constructs it
- * yet (Hilt only builds what's actually injected somewhere), there's no path that could crash a
- * real user's session today. **Phase 3 should add that same defensive check** when it actually
- * starts calling this.
+ * Used by [dev.haseeb.handi.data.sync.SyncRepository], which is the only thing that calls this —
+ * Room stays the single source of truth for the whole app; this is purely the sync transport.
  */
 @Singleton
 class RemoteRecipeDataSource @Inject constructor(
     private val firestore: FirebaseFirestore,
 ) {
-    suspend fun push(uid: String, recipe: Recipe) {
-        recipeCollection(uid).document(recipe.id.toString()).set(recipe.toRemote()).await()
+    suspend fun push(uid: String, remoteId: String, recipe: Recipe) {
+        recipeCollection(uid).document(remoteId).set(recipe.toRemote()).await()
     }
 
-    suspend fun fetchAll(uid: String): List<Recipe> =
+    /** Every remote recipe for [uid], paired with its document id (the recipe's `remoteId`). */
+    suspend fun fetchAll(uid: String): List<Pair<String, Recipe>> =
         recipeCollection(uid).get().await().documents.mapNotNull { document ->
-            val localId = document.id.toLongOrNull() ?: return@mapNotNull null
-            document.toObject(RemoteRecipe::class.java)?.toRecipe(localId)
+            document.toObject(RemoteRecipe::class.java)
+                ?.toRecipe(localId = 0, remoteId = document.id)
+                ?.let { document.id to it }
         }
 
-    suspend fun delete(uid: String, recipeId: Long) {
-        recipeCollection(uid).document(recipeId.toString()).delete().await()
+    suspend fun delete(uid: String, remoteId: String) {
+        recipeCollection(uid).document(remoteId).delete().await()
     }
 
     private fun recipeCollection(uid: String): CollectionReference =
