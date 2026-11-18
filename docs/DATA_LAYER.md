@@ -301,10 +301,69 @@ should gate something — see
 [UI layer](UI_LAYER.md#feature-flags-in-the-ui) for the two existing
 examples (Backup & Restore, Share as PDF).
 
-## 8. Dependency injection — `di/DatabaseModule.kt`
+## 8. Cloud foundation: accounts — `data/auth/`
 
-The only Hilt module in the app today. `@InstallIn(SingletonComponent::class)`,
-provides:
+Phase 2 of the roadmap (GitHub issue
+[#6](https://github.com/mhaseeb1991/Handi/issues/6)): Google sign-in via
+Firebase Auth, using the current recommended Credential Manager API
+(`androidx.credentials` + `com.google.android.libraries.identity.googleid`),
+not the deprecated `GoogleSignInClient`.
+
+| File | Role | Android-dependent? |
+|---|---|---|
+| `User.kt` | plain domain model (`uid`, `displayName`, `email`, `photoUrl`) | No |
+| `AuthRepository.kt` | wraps `FirebaseAuth` + `CredentialManager`: `isGoogleSignInAvailable`, `currentUser: Flow<User?>`, `signInWithGoogle(activityContext)`, `signOut()` | Yes (`@ApplicationContext Context`, Firebase, Credential Manager) |
+
+Same no-Firebase-project-required philosophy as `data/remoteconfig/`
+([§7](#7-feature-flags--dataremoteconfig)) — no existing flow (recipes,
+editor, backup/restore) depends on being signed in, and the repository
+degrades gracefully rather than crashing:
+- If Firebase Auth isn't configured, `auth` is `null` and `currentUser`
+  just emits `null`.
+- `isGoogleSignInAvailable` additionally requires a `default_web_client_id`
+  string resource, which the `google-services` plugin only generates once a
+  Google OAuth client exists in `google-services.json`. It's looked up by
+  name via `context.resources.getIdentifier(...)` (not a direct `R.string`
+  reference), since the resource may not exist at all — a missing-resource
+  compile error would be a far worse failure mode than "feature hidden."
+
+**Needs one piece of console setup this repo can't do for you:** enabling
+Google as a sign-in provider (Firebase console → Authentication → Sign-in
+method → Google), which generates that OAuth client. Until then,
+`isGoogleSignInAvailable` is `false` and the Settings "Account" section
+hides itself entirely (see [UI layer](UI_LAYER.md#account-settings)) — this
+was confirmed on-device against the project's real (but not-yet-enabled)
+`google-services.json`.
+
+One API detail worth calling out: Credential Manager's
+`GetSignInWithGoogleOption` flow returns a credential tagged
+`GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_SIWG_CREDENTIAL`, not the
+plain `TYPE_GOOGLE_ID_TOKEN_CREDENTIAL` that the broader `GetGoogleIdOption`
+API uses. `AuthRepository.signInWithGoogle` checks for both, since missing
+the SIWG variant would mean the credential is never recognized.
+
+## 9. Cloud foundation: remote recipes — `data/remote/`
+
+Firestore-backed scaffolding for syncing recipes across devices, also part
+of issue #6. **Not wired into `RecipeRepository` or any UI yet** — wiring
+it up (conflict handling, when to push/pull, offline queueing) is Phase 3's
+job ([#7](https://github.com/mhaseeb1991/Handi/issues/7)). Nothing
+constructs `RemoteRecipeDataSource` today, so it's dormant: Hilt only
+builds a dependency when something actually injects it.
+
+| File | Role | Android-dependent? |
+|---|---|---|
+| `RemoteRecipe.kt`, `RemoteIngredient.kt` | Firestore-friendly POJOs (all-default-value data classes, required for `toObject()` deserialization) | No |
+| `RemoteRecipeMapper.kt` | pure `Recipe.toRemote()` / `RemoteRecipe.toRecipe(localId)` conversions | No |
+| `RemoteRecipeDataSource.kt` | `push`/`fetchAll`/`delete` against `users/{uid}/recipes/{localId}` in Firestore | Yes (Firestore) |
+
+The local image path is deliberately dropped by the mapper — photo sync
+needs Firebase Storage, which is out of scope here and belongs with
+whatever Phase 3 does for sync.
+
+## 10. Dependency injection — `di/DatabaseModule.kt`, `di/FirebaseModule.kt`
+
+`DatabaseModule`, `@InstallIn(SingletonComponent::class)`, provides:
 - `HandiDatabase` (singleton, built with `SeedCallback` attached)
 - `CatalogDao`, `RecipeDao` (derived from the database instance)
 
@@ -312,3 +371,11 @@ provides:
 own `@Module` entries — Hilt can satisfy them directly from their
 `@Inject constructor` + `@Singleton` annotations once their own dependencies
 (the DAOs, `ImageStorage`, `@ApplicationContext Context`) are available.
+
+`FirebaseModule` provides `FirebaseFirestore` for `RemoteRecipeDataSource`
+([§9](#9-cloud-foundation-remote-recipes--dataremote)) — the only consumer
+today, so like that data source itself, this module is effectively dormant
+until Phase 3 wires sync up. `AuthRepository` and `RemoteConfigRepository`
+don't need a module: they call `FirebaseAuth.getInstance()` /
+`FirebaseRemoteConfig.getInstance()` directly inside their own
+`@Inject constructor`.
