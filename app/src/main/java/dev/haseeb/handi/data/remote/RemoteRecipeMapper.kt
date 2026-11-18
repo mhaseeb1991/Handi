@@ -7,7 +7,6 @@ import dev.haseeb.handi.data.model.RecipeIngredient
 /** Pure conversions between the domain model and the Firestore shape — see `RemoteRecipe.kt`. */
 
 internal fun Recipe.toRemote(): RemoteRecipe = RemoteRecipe(
-    id = id.toString(),
     title = title,
     description = description,
     servings = servings,
@@ -26,9 +25,14 @@ private fun RecipeIngredient.toRemote() = RemoteIngredient(
     note = note,
 )
 
-/** [localId] is the Room-assigned id to restore this recipe under locally — see
- * [RemoteRecipeDataSource] for why this isn't carried on [RemoteRecipe] itself. */
-internal fun RemoteRecipe.toRecipe(localId: Long): Recipe = Recipe(
+/**
+ * [localId] is the Room id to restore this recipe under on *this* device: `0` for "not seen here
+ * yet, let Room assign a fresh one," or an existing local recipe's id when this is an update to
+ * something already synced. [remoteId] is the stable Firestore document id (see
+ * [RemoteRecipeDataSource]), always carried through so the local copy can be matched again next
+ * sync.
+ */
+internal fun RemoteRecipe.toRecipe(localId: Long, remoteId: String): Recipe = Recipe(
     id = localId,
     title = title,
     description = description,
@@ -39,6 +43,7 @@ internal fun RemoteRecipe.toRecipe(localId: Long): Recipe = Recipe(
     steps = steps,
     updatedAt = updatedAt,
     sourceUrl = sourceUrl,
+    remoteId = remoteId,
 )
 
 private fun RemoteIngredient.toDomain() = RecipeIngredient(

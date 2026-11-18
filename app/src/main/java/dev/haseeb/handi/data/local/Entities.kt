@@ -47,6 +47,8 @@ data class RecipeEntity(
     val updatedAt: Long,
     /** Optional link to where this recipe came from (a chef's blog, a video, a cookbook page). */
     val sourceUrl: String? = null,
+    /** See [dev.haseeb.handi.data.model.Recipe.remoteId]. */
+    val remoteId: String? = null,
 )
 
 @Entity(

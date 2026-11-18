@@ -35,6 +35,12 @@ abstract class RecipeDao {
     @Query("SELECT * FROM recipes WHERE id = :id")
     abstract suspend fun get(id: Long): RecipeWithDetails?
 
+    @Query("SELECT EXISTS(SELECT 1 FROM recipes WHERE id = :id)")
+    abstract suspend fun exists(id: Long): Boolean
+
+    @Query("UPDATE recipes SET remoteId = :remoteId WHERE id = :id")
+    abstract suspend fun setRemoteId(id: Long, remoteId: String)
+
     @Insert
     abstract suspend fun insertRecipe(recipe: RecipeEntity): Long
 
@@ -56,14 +62,21 @@ abstract class RecipeDao {
     @Query("DELETE FROM recipes WHERE id = :id")
     abstract suspend fun delete(id: Long)
 
-    /** Inserts or fully replaces a recipe and its children atomically. Returns the recipe id. */
+    /**
+     * Inserts or fully replaces a recipe and its children atomically. Returns the recipe id.
+     *
+     * A non-zero [RecipeEntity.id] whose row doesn't exist yet is inserted with that exact id
+     * rather than treated as a no-op update — needed when pulling a synced recipe that's new to
+     * this device but already has a known local id reserved for it (see
+     * [dev.haseeb.handi.data.repository.RecipeRepository.upsertFromRemote]).
+     */
     @Transaction
     open suspend fun save(
         recipe: RecipeEntity,
         ingredients: List<RecipeIngredientEntity>,
         steps: List<RecipeStepEntity>,
     ): Long {
-        val id = if (recipe.id == 0L) {
+        val id = if (recipe.id == 0L || !exists(recipe.id)) {
             insertRecipe(recipe)
         } else {
             updateRecipe(recipe)
