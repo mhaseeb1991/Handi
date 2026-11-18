@@ -2,17 +2,14 @@ package dev.haseeb.handi.data.remoteconfig
 
 import android.content.Context
 import android.util.Log
-import com.google.android.gms.tasks.Task
 import com.google.firebase.FirebaseApp
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.haseeb.handi.BuildConfig
-import kotlinx.coroutines.suspendCancellableCoroutine
+import dev.haseeb.handi.data.common.await
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 /**
  * Wraps Firebase Remote Config so the rest of the app only ever sees
@@ -76,16 +73,5 @@ class RemoteConfigRepository @Inject constructor(
     private companion object {
         const val TAG = "RemoteConfigRepository"
         const val RELEASE_FETCH_INTERVAL_SECONDS = 3600L
-    }
-}
-
-/**
- * Minimal suspend bridge for a GMS [Task], so this one call site doesn't need the
- * `kotlinx-coroutines-play-services` dependency just for `Task.await()`.
- */
-private suspend fun <T> Task<T>.await(): T = suspendCancellableCoroutine { cont ->
-    addOnCompleteListener { task ->
-        val exception = task.exception
-        if (exception != null) cont.resumeWithException(exception) else cont.resume(task.result)
     }
 }
