@@ -95,6 +95,15 @@ fun DetailScreen(
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
+    LaunchedEffect(Unit) {
+        viewModel.shareLink.collect { link ->
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, link)
+            }
+            context.startActivity(Intent.createChooser(send, "Share recipe link"))
+        }
+    }
 
     val recipe = state.recipe
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -142,6 +151,13 @@ fun DetailScreen(
                     )
                     Spacer(Modifier.width(8.dp))
                 }
+                RoundAction(
+                    icon = Icons.Rounded.Link,
+                    label = "Share link",
+                    busy = state.sharingLink,
+                    onClick = viewModel::shareLink,
+                )
+                Spacer(Modifier.width(8.dp))
                 RoundAction(Icons.Rounded.DeleteOutline, "Delete recipe", onClick = { confirmDelete = true })
             }
         }

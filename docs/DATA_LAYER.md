@@ -424,7 +424,61 @@ no-op via `updateRecipe`) — see
 [§2](#2-room-persistence--datalocal)'s note on `save()`, and
 `RecipeDaoSyncTest` for the regression coverage.
 
-## 11. Dependency injection — `di/DatabaseModule.kt`, `di/FirebaseModule.kt`
+## 11. Sharing a recipe as a read-only link — `data/share/`
+
+Phase 4 (GitHub issue
+[#8](https://github.com/mhaseeb1991/Handi/issues/8)): a "Share link" action
+on the detail screen publishes a one-time, read-only snapshot of a recipe
+that anyone with the link can open, without signing in.
+
+| File | Role | Android-dependent? |
+|---|---|---|
+| `ShareLink.kt` | pure `shareLinkUri(shareId): String` — builds `handi://recipe/{shareId}` | No |
+| `SharedRecipeDataSource.kt` | `publish(recipe): String` (new share id) / `fetch(shareId): Recipe?`, against the top-level `shared_recipes/{shareId}` Firestore collection | Yes (Firestore) |
+
+Reuses `RemoteRecipe`/its mapper
+([§9](#9-remote-recipe-transport--dataremote)) for the document shape —
+same fields, no photo, no new model needed. Deliberately **not**
+`users/{uid}/recipes/...` like the sync transport, since opening a shared
+link doesn't require (or even allow, since the viewer may be a different
+person entirely) signing in.
+
+**A custom-scheme deep link, not a real App Link.** `handi://recipe/{shareId}`
+only opens anything when Handi is already installed on the device that
+taps it — this repo has no web domain to host the Digital Asset Links
+file a real `https://` App Link needs. Wired up as:
+- An `android:scheme="handi" android:host="recipe"` intent filter on
+  `MainActivity` (`AndroidManifest.xml`).
+- A `SharedRecipeRoute(shareId)` composable in `HandiNavHost` with a
+  matching `navDeepLink`, opening
+  [`SharedRecipeScreen`](UI_LAYER.md#shared-recipe-screen).
+- `MainActivity.onNewIntent` forwarding to `navController.handleDeepLink(...)`
+  for a link tapped while the app's already running — a cold start picks
+  the deep link up on its own, a warm one doesn't without this.
+
+**Sharing again creates a brand new document.** There's no persisted
+mapping from a recipe to its last share id (unlike sync's `remoteId`), so
+re-sharing never reuses or revokes a previous link — both keep working
+independently. A deliberately simple MVP.
+
+**Needs console setup this repo can't do for you**, same as every other
+Firebase-coupled piece: a Firestore security rule permitting public read
+(and, practically, authenticated create) on documents under
+`shared_recipes`. Confirmed live against the real (not-yet-configured)
+project: `publish`/`fetch` fail — gracefully, see below — with a
+permission-denied error rather than crashing, and the deep link itself
+opens correctly end-to-end (cold start, warm start via `onNewIntent`, and
+the "not available" state for an unknown/denied id) regardless.
+
+**A real bug this testing caught:** a Firestore *write* against a project
+where the Firestore API isn't enabled doesn't fail its `Task` — the SDK
+retries the underlying stream forever, so the un-timed-out `await()`
+(`data/common/FirebaseTasks.kt`) never completed, leaving `shareLink()`'s
+"sharing…" spinner stuck forever with no error ever shown. Fixed by
+wrapping `await()` in a 20s `withTimeout`, which benefits
+`RemoteRecipeDataSource`/`SyncRepository`'s writes identically.
+
+## 12. Dependency injection — `di/DatabaseModule.kt`, `di/FirebaseModule.kt`
 
 `DatabaseModule`, `@InstallIn(SingletonComponent::class)`, provides:
 - `HandiDatabase` (singleton, built with `SeedCallback` attached)
@@ -436,8 +490,8 @@ own `@Module` entries — Hilt can satisfy them directly from their
 (the DAOs, `ImageStorage`, `@ApplicationContext Context`) are available.
 
 `FirebaseModule` provides `FirebaseFirestore` for `RemoteRecipeDataSource`
-([§9](#9-remote-recipe-transport--dataremote)), used by `SyncRepository`
-([§10](#10-cross-device-sync--datasync)). `AuthRepository` and
-`RemoteConfigRepository` don't need a module: they call
-`FirebaseAuth.getInstance()` / `FirebaseRemoteConfig.getInstance()`
+([§9](#9-remote-recipe-transport--dataremote)) and
+`SharedRecipeDataSource` ([§11](#11-sharing-a-recipe-as-a-read-only-link--datashare)).
+`AuthRepository` and `RemoteConfigRepository` don't need a module: they
+call `FirebaseAuth.getInstance()` / `FirebaseRemoteConfig.getInstance()`
 directly inside their own `@Inject constructor`.

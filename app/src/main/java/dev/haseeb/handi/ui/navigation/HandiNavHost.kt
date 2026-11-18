@@ -5,14 +5,17 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navDeepLink
 import dev.haseeb.handi.ui.backup.BackupScreen
 import dev.haseeb.handi.ui.detail.DetailScreen
 import dev.haseeb.handi.ui.editor.EditorScreen
 import dev.haseeb.handi.ui.home.HomeScreen
 import dev.haseeb.handi.ui.settings.SettingsScreen
+import dev.haseeb.handi.ui.shared.SharedRecipeScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -31,9 +34,12 @@ data object SettingsRoute
 @Serializable
 data object BackupRoute
 
+/** Opened via the `handi://recipe/{shareId}` deep link a "Share link" creates -- issue #8. */
+@Serializable
+data class SharedRecipeRoute(val shareId: String)
+
 @Composable
-fun HandiNavHost() {
-    val nav = rememberNavController()
+fun HandiNavHost(nav: NavHostController = rememberNavController()) {
     NavHost(
         navController = nav,
         startDestination = HomeRoute,
@@ -74,6 +80,13 @@ fun HandiNavHost() {
         }
         composable<BackupRoute> {
             BackupScreen(onBack = { nav.popBackStack() })
+        }
+        composable<SharedRecipeRoute>(
+            deepLinks = listOf(navDeepLink<SharedRecipeRoute>(basePath = "handi://recipe")),
+        ) {
+            // A link tapped from outside the app has no back stack underneath it -- fall back
+            // to Home rather than leaving the back button with nowhere to go.
+            SharedRecipeScreen(onBack = { if (!nav.popBackStack()) nav.navigate(HomeRoute) })
         }
     }
 }
