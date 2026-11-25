@@ -12,3 +12,6 @@
 # Local tooling
 /.claude/
 /graphify-out/
+
+# Per-developer Firebase project config — see docs/DATA_LAYER.md's remote-config section.
+/app/google-services.json

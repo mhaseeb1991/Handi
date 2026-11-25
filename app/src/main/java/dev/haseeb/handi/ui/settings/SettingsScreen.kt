@@ -20,10 +20,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.haseeb.handi.core.designsystem.components.Kicker
 
 /**
@@ -33,7 +36,13 @@ import dev.haseeb.handi.core.designsystem.components.Kicker
  * grow into, rather than each bolting its own icon onto Home.
  */
 @Composable
-fun SettingsScreen(onBackup: () -> Unit, onBack: () -> Unit) {
+fun SettingsScreen(
+    onBackup: () -> Unit,
+    onBack: () -> Unit,
+    viewModel: SettingsViewModel = hiltViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = { SettingsTopBar(onBack = onBack) },
@@ -44,35 +53,43 @@ fun SettingsScreen(onBackup: () -> Unit, onBack: () -> Unit) {
                 .padding(padding)
                 .padding(horizontal = 24.dp, vertical = 8.dp),
         ) {
-            Kicker("Your data", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Surface(
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp).clickable(onClick = onBackup),
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(16.dp),
+            // Hidden rather than shown-disabled: Remote Config's "backup_restore_enabled" is a
+            // kill switch for a feature that might be pulled entirely, not a "coming soon".
+            if (state.backupRestoreEnabled) {
+                Kicker("Your data", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Surface(
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp).clickable(onClick = onBackup),
                 ) {
-                    Icon(Icons.Rounded.SettingsBackupRestore, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                        Text("Backup & restore", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "Export your recipes to a file, or restore from one",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(16.dp),
+                    ) {
+                        Icon(Icons.Rounded.SettingsBackupRestore, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                            Text("Backup & restore", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "Export your recipes to a file, or restore from one",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Icon(
+                            Icons.Rounded.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp),
                         )
                     }
-                    Icon(
-                        Icons.Rounded.ChevronRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
-                    )
                 }
             }
 
-            Kicker("About", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 32.dp))
+            Kicker(
+                "About",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = if (state.backupRestoreEnabled) 32.dp else 0.dp),
+            )
             Surface(
                 shape = MaterialTheme.shapes.large,
                 color = MaterialTheme.colorScheme.surfaceContainerLow,

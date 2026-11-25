@@ -259,6 +259,35 @@ to observe, only an in-flight export/import and a one-shot result message.
 See [Data layer](DATA_LAYER.md#5-backup--restore--databackup) for the
 export/import format and the title-based dedupe import strategy.
 
+## Settings screen — `ui/settings/SettingsScreen.kt` + `SettingsViewModel.kt`
+
+Reached from the gear icon on Home's header. `SettingsUiState.backupRestoreEnabled`
+starts from `RemoteConfigRepository.isEnabled(FeatureFlag.BACKUP_RESTORE_ENABLED)`
+synchronously in the ViewModel's constructor (so the first frame is already
+correct — no flicker where the row briefly shows then disappears), then
+`init` calls `remoteConfig.refresh()` and re-reads it in case the fetch
+changed anything. Below that, a static "About" section (app name,
+version via `PackageManager`).
+
+## Feature flags in the UI
+
+Two existing features are gated behind [Remote Config](DATA_LAYER.md#7-feature-flags--dataremoteconfig)
+flags, both following the same shape — read the flag into `UiState` up
+front (so there's a correct value on the very first frame), optionally
+refresh and re-read once Remote Config has had a chance to fetch, and
+**hide** the gated UI entirely rather than show it disabled:
+
+- **Backup & Restore** (`FeatureFlag.BACKUP_RESTORE_ENABLED`) — the row on
+  `SettingsScreen` above.
+- **Share as PDF** (`FeatureFlag.PDF_EXPORT_ENABLED`) — the `RoundAction`
+  on `DetailScreen`; `DetailViewModel.sharePdf()` also checks the flag
+  itself before doing any work, so a stale/cached screen state can't call
+  it after the flag's turned off.
+
+Hiding rather than disabling is a deliberate choice: these flags are kill
+switches for features that might be pulled entirely, not a "coming soon"
+a user should expect to see light up later.
+
 ## Adding a new screen — checklist
 
 1. Add a `@Serializable` route to `HandiNavHost.kt`.

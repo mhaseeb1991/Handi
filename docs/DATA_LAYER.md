@@ -266,7 +266,42 @@ on a background dispatcher and sends the resulting `Uri` on a one-shot
 channel for the screen to launch `Intent.ACTION_SEND` with, mirroring how
 `deleted` already signals a one-time navigation event.
 
-## 7. Dependency injection — `di/DatabaseModule.kt`
+## 7. Feature flags — `data/remoteconfig/`
+
+Lets a feature be turned off remotely (a kill switch, a staged rollout)
+without shipping a new release, via Firebase Remote Config (GitHub issue
+[#13](https://github.com/mhaseeb1991/Handi/issues/13)). Split the same way
+as `data/backup/` and `data/pdf/`:
+
+| File | Role | Android-dependent? |
+|---|---|---|
+| `FeatureFlag.kt` | the enum of flags — each with a Remote Config `key` and a compiled-in `defaultValue` | No |
+| `RemoteConfigRepository.kt` | wraps `FirebaseRemoteConfig`: `refresh()` (best-effort fetch-and-activate) and `isEnabled(flag)` | Yes (`@ApplicationContext Context`, Firebase) |
+
+**This repo ships with no real Firebase project.** `app/build.gradle.kts`
+only applies the `google-services` Gradle plugin when
+`app/google-services.json` exists (that file is gitignored — it's
+per-developer/per-environment, not something to commit). Without it:
+- `RemoteConfigRepository`'s internal `FirebaseRemoteConfig` instance is
+  `null` (checked via `FirebaseApp.getApps(context).isEmpty()`, no
+  exception thrown).
+- `isEnabled(flag)` always returns `flag.defaultValue`.
+- `refresh()` is a no-op.
+
+In other words: **every flag always has a working, compiled-in value,
+with or without Firebase** — the app never blocks on or breaks from a
+missing/unreachable Remote Config. To actually make a flag remotely
+controllable, create a Firebase project, download its
+`google-services.json` into `app/`, and set the flag's key (e.g.
+`pdf_export_enabled`) in the Firebase console's Remote Config page.
+
+**Adding a new flag:** add an entry to `FeatureFlag`, then read it via
+`remoteConfigRepository.isEnabled(FeatureFlag.YOUR_FLAG)` wherever it
+should gate something — see
+[UI layer](UI_LAYER.md#feature-flags-in-the-ui) for the two existing
+examples (Backup & Restore, Share as PDF).
+
+## 8. Dependency injection — `di/DatabaseModule.kt`
 
 The only Hilt module in the app today. `@InstallIn(SingletonComponent::class)`,
 provides:
