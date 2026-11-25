@@ -269,6 +269,37 @@ correct — no flicker where the row briefly shows then disappears), then
 changed anything. Below that, a static "About" section (app name,
 version via `PackageManager`).
 
+### Account settings
+
+A Phase 2 addition ([#6](https://github.com/mhaseeb1991/Handi/issues/6)):
+when `SettingsUiState.isGoogleSignInAvailable` is true, an "Account"
+section appears above everything else, backed by a private `AccountCard`
+composable. Same shape as the other sections — `isGoogleSignInAvailable` is
+read synchronously from `AuthRepository.isGoogleSignInAvailable` in the
+ViewModel's constructor, so there's no flicker.
+
+`AccountCard` shows one of two states:
+- **Signed out** — "Sign in to keep your account ready for recipe sync
+  across devices." plus a "Sign in with Google" `FilledTonalButton`, which
+  swaps to a `CircularProgressIndicator` while `signingIn` is true.
+  `onSignIn` passes `LocalContext.current` (not the ViewModel's own
+  context) into `SettingsViewModel.signIn(activityContext)`, since
+  Credential Manager needs an `Activity` context to show the account
+  picker — see `AuthRepository.signInWithGoogle`'s doc comment
+  ([DATA_LAYER.md §8](DATA_LAYER.md#8-cloud-foundation-accounts--dataauth)).
+- **Signed in** — `Icons.Rounded.AccountCircle` (standing in for a profile
+  photo) plus the user's `displayName`/`email`, and a "Sign out"
+  `TextButton`.
+
+`SettingsScreen` also has a `LaunchedEffect(state.signInError)` that shows
+a `Toast` and immediately calls `viewModel.consumeSignInError()`, so a
+failed sign-in (or declining the account picker) doesn't silently fail —
+and doesn't re-show the same toast on a later recomposition.
+
+Until Google sign-in is enabled as a provider in the Firebase console, the
+whole section is absent rather than shown-disabled — consistent with how
+the feature-flagged sections below handle "not available right now."
+
 ## Feature flags in the UI
 
 Two existing features are gated behind [Remote Config](DATA_LAYER.md#7-feature-flags--dataremoteconfig)
