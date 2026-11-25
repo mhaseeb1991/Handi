@@ -58,6 +58,13 @@ fun SettingsScreen(
         }
     }
 
+    LaunchedEffect(state.syncMessage) {
+        state.syncMessage?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            viewModel.consumeSyncMessage()
+        }
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = { SettingsTopBar(onBack = onBack) },
@@ -73,8 +80,10 @@ fun SettingsScreen(
                 AccountCard(
                     user = state.user,
                     signingIn = state.signingIn,
+                    syncing = state.syncing,
                     onSignIn = { viewModel.signIn(context) },
                     onSignOut = viewModel::signOut,
+                    onSyncNow = viewModel::syncNow,
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
@@ -153,7 +162,15 @@ fun SettingsScreen(
  * profile photo — fetching [User.photoUrl] is a reasonable follow-up, not required for Phase 2.
  */
 @Composable
-private fun AccountCard(user: User?, signingIn: Boolean, onSignIn: () -> Unit, onSignOut: () -> Unit, modifier: Modifier = Modifier) {
+private fun AccountCard(
+    user: User?,
+    signingIn: Boolean,
+    syncing: Boolean,
+    onSignIn: () -> Unit,
+    onSignOut: () -> Unit,
+    onSyncNow: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -175,8 +192,17 @@ private fun AccountCard(user: User?, signingIn: Boolean, onSignIn: () -> Unit, o
                         }
                     }
                 }
-                TextButton(onClick = onSignOut, modifier = Modifier.padding(top = 4.dp)) {
-                    Text("Sign out")
+                Row(modifier = Modifier.padding(top = 4.dp)) {
+                    TextButton(onClick = onSyncNow, enabled = !syncing) {
+                        if (syncing) {
+                            CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                        } else {
+                            Text("Sync now")
+                        }
+                    }
+                    TextButton(onClick = onSignOut) {
+                        Text("Sign out")
+                    }
                 }
             } else {
                 Text(

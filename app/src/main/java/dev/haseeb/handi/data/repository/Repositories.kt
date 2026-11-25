@@ -65,4 +65,24 @@ class RecipeRepository @Inject constructor(
         dao.delete(id)
         images.delete(image)
     }
+
+    /**
+     * Writes a recipe pulled from sync, preserving its own [Recipe.updatedAt]/[Recipe.remoteId]
+     * exactly as given (unlike [save], which always stamps the current time) — otherwise every
+     * pull would look like a fresh local edit and immediately re-trigger a push. [recipe.id] is
+     * `0` for a recipe this device hasn't seen before (Room assigns a fresh local id) or an
+     * existing local id when updating something already synced.
+     */
+    suspend fun upsertFromRemote(recipe: Recipe): Long {
+        val existing = if (recipe.id != 0L) dao.get(recipe.id) else null
+        return dao.save(
+            recipe = recipe.toEntity(createdAt = existing?.recipe?.createdAt ?: recipe.updatedAt, now = recipe.updatedAt),
+            ingredients = recipe.ingredientEntities(),
+            steps = recipe.stepEntities(),
+        )
+    }
+
+    /** Persists the UUID [SyncRepository][dev.haseeb.handi.data.sync.SyncRepository] generates
+     * the first time a recipe is pushed, without touching [Recipe.updatedAt]. */
+    suspend fun assignRemoteId(id: Long, remoteId: String) = dao.setRemoteId(id, remoteId)
 }

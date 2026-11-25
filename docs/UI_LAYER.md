@@ -300,6 +300,18 @@ Until Google sign-in is enabled as a provider in the Firebase console, the
 whole section is absent rather than shown-disabled — consistent with how
 the feature-flagged sections below handle "not available right now."
 
+**Sync now** (Phase 3, [#7](https://github.com/mhaseeb1991/Handi/issues/7))
+— when signed in, `AccountCard` also shows a "Sync now" `TextButton` next
+to "Sign out", swapping to a small `CircularProgressIndicator` while
+`SettingsUiState.syncing` is true. `SettingsViewModel.init` also triggers
+one sync automatically the moment `auth.currentUser` first reports a
+non-null uid (sign-in, or a session Firebase restores on launch) — guarded
+with `distinctUntilChangedBy { it?.uid }` so it fires once per sign-in,
+not on every `currentUser` emission. Either way, the result (or failure)
+surfaces through the same toast pattern as `signInError`, via
+`state.syncMessage` and `viewModel.consumeSyncMessage()` — see
+[`SyncRepository`](DATA_LAYER.md#10-cross-device-sync--datasync).
+
 ## Feature flags in the UI
 
 Two existing features are gated behind [Remote Config](DATA_LAYER.md#7-feature-flags--dataremoteconfig)

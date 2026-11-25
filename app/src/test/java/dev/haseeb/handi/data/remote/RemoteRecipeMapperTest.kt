@@ -25,9 +25,8 @@ class RemoteRecipeMapperTest {
         sourceUrl = "https://example.com/chana-masala",
     )
 
-    @Test fun `toRemote uses the local id as the document id, and never carries the local image path`() {
+    @Test fun `toRemote never carries the local id or the local image path`() {
         val remote = recipe.toRemote()
-        assertEquals("42", remote.id)
         assertEquals(recipe.title, remote.title)
         assertEquals(recipe.description, remote.description)
         assertEquals(recipe.servings, remote.servings)
@@ -42,11 +41,12 @@ class RemoteRecipeMapperTest {
         assertNull(remote.ingredients[1].amount)
     }
 
-    @Test fun `toRecipe restores the given local id and leaves imagePath null`() {
+    @Test fun `toRecipe restores the given local id and remoteId, and leaves imagePath null`() {
         val remote = recipe.toRemote()
-        val restored = remote.toRecipe(localId = 99)
+        val restored = remote.toRecipe(localId = 99, remoteId = "doc-abc")
 
         assertEquals(99L, restored.id)
+        assertEquals("doc-abc", restored.remoteId)
         assertNull(restored.imagePath)
         assertEquals(recipe.title, restored.title)
         assertEquals(recipe.ingredients, restored.ingredients)
@@ -57,6 +57,6 @@ class RemoteRecipeMapperTest {
     @Test fun `a recipe with no reference link round-trips sourceUrl as null`() {
         val noLink = recipe.copy(sourceUrl = null)
         assertNull(noLink.toRemote().sourceUrl)
-        assertNull(noLink.toRemote().toRecipe(localId = 1).sourceUrl)
+        assertNull(noLink.toRemote().toRecipe(localId = 1, remoteId = "doc-abc").sourceUrl)
     }
 }

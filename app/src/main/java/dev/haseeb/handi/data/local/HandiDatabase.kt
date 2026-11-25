@@ -15,7 +15,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RecipeIngredientEntity::class,
         RecipeStepEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class HandiDatabase : RoomDatabase() {
@@ -65,6 +65,13 @@ abstract class HandiDatabase : RoomDatabase() {
         val MIGRATION_1_2: Migration = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE recipes ADD COLUMN sourceUrl TEXT")
+            }
+        }
+
+        /** Adds `recipes.remoteId` (nullable) — see issue #7, cross-device sync. */
+        val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE recipes ADD COLUMN remoteId TEXT")
             }
         }
     }

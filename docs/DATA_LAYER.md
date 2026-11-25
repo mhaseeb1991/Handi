@@ -18,11 +18,13 @@ vocabulary the UI layer speaks.
   *as used inside one recipe* (a snapshot — not a foreign key to
   `Ingredient`, so renaming a catalogue ingredient later never changes past
   recipes).
-- `Recipe(id, title, description, imagePath, servings, cookMinutes, ingredients, steps, updatedAt, sourceUrl)`
+- `Recipe(id, title, description, imagePath, servings, cookMinutes, ingredients, steps, updatedAt, sourceUrl, remoteId)`
   — the aggregate root. `id = 0` means "not saved yet". `sourceUrl` is an
   optional link to where the recipe came from (a chef's blog, a video, a
   cookbook page) — see [UI layer](UI_LAYER.md#the-four-step-composables)
   for how it's entered, and the detail screen section for how it's shown.
+  `remoteId` is the stable cross-device id sync (§9) assigns the first time
+  a recipe is pushed — `null` until then.
 
 **`Measure.kt`** — the enum of units: `GRAM`, `KILOGRAM`, `MILLILITRE`,
 `LITRE`, `CUP`, `TABLESPOON`, `TEASPOON`, `PIECE`, `CLOVE`, `BUNCH`,
@@ -87,6 +89,18 @@ it's unit-testable in isolation (see
   ingredients and steps" — inside one `@Transaction` so observers never see
   a half-written recipe.
 
+  As of issue #7, `save`'s `recipe.id == 0L` branch is actually
+  `recipe.id == 0L || !exists(recipe.id)` — a non-zero id whose row doesn't
+  exist yet is *inserted* at that exact id rather than silently no-op'd by
+  `updateRecipe`. This is what lets
+  [`RecipeRepository.upsertFromRemote`](#9-cross-device-sync--datasync)
+  write a recipe synced from another device under the local id it's meant
+  to have, the first time this device sees it.
+
+- `RecipeDao.setRemoteId(id, remoteId)` — a plain column update, deliberately
+  not routed through `save()`, since it shouldn't touch `updatedAt` (it's
+  metadata about *where* a recipe is synced, not an edit to it).
+
 **`HandiDatabase.kt`** — the `@Database` (`version = 1`, `exportSchema =
 true`; the exported schema JSON lives in
 `app/schemas/dev.haseeb.handi.data.local.HandiDatabase/1.json` and is
@@ -96,12 +110,12 @@ it bulk-inserts every category and ingredient from `IngredientCatalog` using
 raw `ContentValues` inserts inside one transaction, wired up in
 `di/DatabaseModule.kt`.
 
-> **`HandiDatabase` is at `version = 2`.** If you change any `@Entity`, you
+> **`HandiDatabase` is at `version = 3`.** If you change any `@Entity`, you
 > must bump `version` and add a `Migration`, or add
 > `fallbackToDestructiveMigration()` — otherwise existing installs crash on
 > the schema mismatch. `MIGRATION_1_2` (adding `recipes.sourceUrl`, issue
-> #10) is the one migration that exists so far — follow its shape for the
-> next one.
+> #10) and `MIGRATION_2_3` (adding `recipes.remoteId`, issue #7) are the
+> migrations so far — follow their shape for the next one.
 
 **How to add a migration safely.** A regression test harness already exists
 for this: `app/src/androidTest/java/.../HandiDatabaseMigrationTest.kt`'s
@@ -342,26 +356,75 @@ plain `TYPE_GOOGLE_ID_TOKEN_CREDENTIAL` that the broader `GetGoogleIdOption`
 API uses. `AuthRepository.signInWithGoogle` checks for both, since missing
 the SIWG variant would mean the credential is never recognized.
 
-## 9. Cloud foundation: remote recipes — `data/remote/`
+## 9. Remote recipe transport — `data/remote/`
 
-Firestore-backed scaffolding for syncing recipes across devices, also part
-of issue #6. **Not wired into `RecipeRepository` or any UI yet** — wiring
-it up (conflict handling, when to push/pull, offline queueing) is Phase 3's
-job ([#7](https://github.com/mhaseeb1991/Handi/issues/7)). Nothing
-constructs `RemoteRecipeDataSource` today, so it's dormant: Hilt only
-builds a dependency when something actually injects it.
+Firestore access for recipes, under `users/{uid}/recipes/{remoteId}`. Only
+[`SyncRepository`](#10-cross-device-sync--datasync) calls this — it's pure
+transport, with no merge/conflict logic of its own.
 
 | File | Role | Android-dependent? |
 |---|---|---|
 | `RemoteRecipe.kt`, `RemoteIngredient.kt` | Firestore-friendly POJOs (all-default-value data classes, required for `toObject()` deserialization) | No |
-| `RemoteRecipeMapper.kt` | pure `Recipe.toRemote()` / `RemoteRecipe.toRecipe(localId)` conversions | No |
-| `RemoteRecipeDataSource.kt` | `push`/`fetchAll`/`delete` against `users/{uid}/recipes/{localId}` in Firestore | Yes (Firestore) |
+| `RemoteRecipeMapper.kt` | pure `Recipe.toRemote()` / `RemoteRecipe.toRecipe(localId, remoteId)` conversions | No |
+| `RemoteRecipeDataSource.kt` | `push(uid, remoteId, recipe)` / `fetchAll(uid): List<Pair<String, Recipe>>` / `delete(uid, remoteId)` against Firestore | Yes (Firestore) |
 
 The local image path is deliberately dropped by the mapper — photo sync
-needs Firebase Storage, which is out of scope here and belongs with
-whatever Phase 3 does for sync.
+needs Firebase Storage, which is out of scope for this phase too.
 
-## 10. Dependency injection — `di/DatabaseModule.kt`, `di/FirebaseModule.kt`
+**The document id is `remoteId` (a UUID), never the local Room `id`.**
+Phase 2 originally used the local id as the Firestore document id; that
+breaks the moment there's a second device, since each device hands out
+Room ids independently — two unrelated recipes on two phones can easily
+both be "recipe #7" and silently overwrite each other's Firestore
+document. This was caught and fixed before Phase 2 even merged (the
+scaffolding wasn't wired to anything yet, so there was nothing to migrate
+away from).
+
+## 10. Cross-device sync — `data/sync/`
+
+Phase 3 (GitHub issue
+[#7](https://github.com/mhaseeb1991/Handi/issues/7)): a last-write-wins
+sync between Room and Firestore, triggered explicitly (sign-in, or "Sync
+now" in Settings — see [UI layer](UI_LAYER.md#account-settings)), not a
+background service.
+
+| File | Role | Android-dependent? |
+|---|---|---|
+| `SyncPlan.kt` | pure `recipesToPull`/`recipesToPush` — the actual last-write-wins decision, by [`Recipe.updatedAt`](#1-domain-models--datamodel) | No |
+| `SyncRepository.kt` | `syncNow(): Result<SyncResult>` — the Room/Firestore plumbing around the plan above | Yes (`RecipeRepository`, `RemoteRecipeDataSource`, `AuthRepository`) |
+
+`syncNow()`:
+1. Requires a signed-in user ([§8](#8-cloud-foundation-accounts--dataauth))
+   — fails fast with a clear message otherwise, rather than silently
+   no-op'ing.
+2. Fetches every local and every remote recipe, matches them up by
+   `remoteId`, and asks `SyncPlan` which side's newer per recipe.
+3. Pulls what's newer remotely via
+   `RecipeRepository.upsertFromRemote` (preserves the remote's own
+   `updatedAt`/`remoteId` rather than stamping "now," which `save()`
+   always does — otherwise every pull would look like a fresh edit and
+   immediately bounce straight back to a push).
+4. Pushes what's newer locally — assigning a fresh UUID `remoteId` first
+   (via `RecipeRepository.assignRemoteId`, a plain column update that
+   doesn't touch `updatedAt`) for any recipe that's never been synced.
+
+**Known limitation, by design: deletes don't propagate.** Deleting a
+recipe (`RecipeRepository.delete`) is local-only — the Firestore document
+and any other device's copy are untouched. Making that work needs delete
+tombstones (a "this id was deleted at time T" record that outlives the
+recipe itself, so a sync pass can tell "never synced" apart from "deleted
+elsewhere"), which is real additional complexity this phase didn't take
+on. A recipe deleted on one device will currently reappear there the next
+time sync pulls it back down from Firestore (or from another device that
+still has it).
+
+`RecipeDao.save()` also changed to support this: a non-zero id whose row
+doesn't exist yet is now inserted at that exact id (previously a silent
+no-op via `updateRecipe`) — see
+[§2](#2-room-persistence--datalocal)'s note on `save()`, and
+`RecipeDaoSyncTest` for the regression coverage.
+
+## 11. Dependency injection — `di/DatabaseModule.kt`, `di/FirebaseModule.kt`
 
 `DatabaseModule`, `@InstallIn(SingletonComponent::class)`, provides:
 - `HandiDatabase` (singleton, built with `SeedCallback` attached)
@@ -373,9 +436,8 @@ own `@Module` entries — Hilt can satisfy them directly from their
 (the DAOs, `ImageStorage`, `@ApplicationContext Context`) are available.
 
 `FirebaseModule` provides `FirebaseFirestore` for `RemoteRecipeDataSource`
-([§9](#9-cloud-foundation-remote-recipes--dataremote)) — the only consumer
-today, so like that data source itself, this module is effectively dormant
-until Phase 3 wires sync up. `AuthRepository` and `RemoteConfigRepository`
-don't need a module: they call `FirebaseAuth.getInstance()` /
-`FirebaseRemoteConfig.getInstance()` directly inside their own
-`@Inject constructor`.
+([§9](#9-remote-recipe-transport--dataremote)), used by `SyncRepository`
+([§10](#10-cross-device-sync--datasync)). `AuthRepository` and
+`RemoteConfigRepository` don't need a module: they call
+`FirebaseAuth.getInstance()` / `FirebaseRemoteConfig.getInstance()`
+directly inside their own `@Inject constructor`.
