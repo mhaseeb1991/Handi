@@ -13,10 +13,20 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Shared recipe links (issue #8): a custom scheme, not a real https App Link,
+                 since this repo has no web domain to host Digital Asset Links on. Only opens
+                 anything when Handi is already installed. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="handi" android:host="recipe" />
             </intent-filter>
         </activity>
 

@@ -37,6 +37,17 @@ wires the three screens together:
 To add a fourth screen: add a `@Serializable` route, add a `composable<Route> { }`
 block here, and have the originating screen call `nav.navigate(YourRoute(...))`.
 
+**`SharedRecipeRoute(shareId: String)`** (Phase 4, [#8](https://github.com/mhaseeb1991/Handi/issues/8))
+is the odd one out: it's reached from *outside* the app, via a
+`navDeepLink<SharedRecipeRoute>(basePath = "handi://recipe")` matching the
+`handi://recipe/{shareId}` intent filter on `MainActivity`. That's why
+`HandiNavHost` takes its `NavHostController` as a parameter (default
+`rememberNavController()`) rather than always creating its own:
+`MainActivity` creates it, passes it down, and keeps a reference so
+`onNewIntent` can call `navController.handleDeepLink(intent)` for a link
+tapped while the app's already running — see
+[Data layer §11](DATA_LAYER.md#11-sharing-a-recipe-as-a-read-only-link--datashare).
+
 ## The unidirectional-state pattern
 
 All three screens follow the same shape — learn it once:
@@ -119,8 +130,8 @@ title/description, a `ReferenceLinkRow` (only rendered when
 `Intent.ACTION_VIEW`, wrapped in `runCatching` so a malformed/unopenable
 URL doesn't crash the screen), a `StatsStrip` (servings stepper + cook
 time), ingredients grouped by category with a coloured `TintDot`, numbered
-method steps. Three floating round buttons over the hero (back, share as
-PDF, delete), an `AlertDialog` to confirm deletion, an
+method steps. Floating round buttons over the hero (back, share as PDF,
+share link, delete), an `AlertDialog` to confirm deletion, an
 `ExtendedFloatingActionButton` ("Edit recipe").
 
 **Share as PDF**: `DetailViewModel.sharePdf()` (see
@@ -135,6 +146,43 @@ signals "navigate back now"); the screen collects it in a
 `FLAG_GRANT_READ_URI_PERMISSION`. On failure, a `shareError` channel
 carries a message shown as a `Toast` (the screen has no `Scaffold`/
 `SnackbarHost` of its own, unlike `BackupScreen`).
+
+**Share link** (Phase 4, [#8](https://github.com/mhaseeb1991/Handi/issues/8)):
+`DetailViewModel.shareLink()` follows the exact same shape as `sharePdf()`
+— a `sharingLink`/`DetailUiState.sharingLink` busy flag driving the same
+`RoundAction` spinner pattern, success landing on a one-shot `shareLink`
+channel (a `String`, not a `Uri`), failure on the same `shareError`
+channel. The screen's `LaunchedEffect` for `shareLink` launches
+`Intent.ACTION_SEND` with `type = "text/plain"` and the link as
+`EXTRA_TEXT`, rather than an attached file — see
+[Data layer](DATA_LAYER.md#11-sharing-a-recipe-as-a-read-only-link--datashare)
+for the deep link itself and a real bug this screen's manual testing
+surfaced (a stuck-forever spinner on a Firestore write that never fails).
+
+### Shared recipe screen — `ui/shared/SharedRecipeScreen.kt` + `SharedRecipeViewModel.kt`
+
+Opened only via the `handi://recipe/{shareId}` deep link a "Share link" tap
+creates (see [Navigation](#navigation--uinavigationhandinavhostkt) and
+[Data layer §11](DATA_LAYER.md#11-sharing-a-recipe-as-a-read-only-link--datashare))
+— never reachable by navigating within the app. No `hiltViewModel()`
+dependency on `AuthRepository` or any local Room repository: the viewer
+may not have an account, and the recipe comes entirely from
+`SharedRecipeDataSource.fetch(shareId)`.
+
+`SharedRecipeUiState(loading, recipe, notFound)` — `notFound` is distinct
+from "still loading" so the screen can show a proper "this link isn't
+available anymore" message (a bad id, a removed share, or a Firestore
+permission error — all three look the same to a viewer, and all three are
+handled identically rather than crashing).
+
+Deliberately **not** a reuse of `DetailScreen`'s `RecipeContent` -- a
+separate, simpler `SharedRecipeContent` composable instead. `RecipeContent`
+depends on `DetailUiState` (servings override, category tinting pulled
+from the local catalogue) that doesn't apply to a recipe someone else
+shared: no servings stepper, ingredients shown in whatever order they were
+saved rather than grouped/tinted by category. Back button falls back to
+`HomeRoute` when there's nothing to pop (a link opened cold has no back
+stack beneath it) — see `HandiNavHost`.
 
 ### Editor screen — `ui/editor/EditorScreen.kt` + `EditorViewModel.kt`
 
